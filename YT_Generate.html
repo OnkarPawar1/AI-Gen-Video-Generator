@@ -72,9 +72,15 @@
                         <input type="text" id="api_key_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Your Google API Key...">
                     </div>
                 </div>
-                <div>
-                    <label for="token_input" class="block text-sm font-medium text-gray-700">Vertex AI Access Token</label>
-                    <textarea id="token_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Paste your gcloud auth print-access-token here..."></textarea>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div>
+                        <label for="text_model_select" class="block text-sm font-medium text-gray-700">Text Model</label>
+                        <select id="text_model_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="token_input" class="block text-sm font-medium text-gray-700">Vertex AI Access Token</label>
+                        <textarea id="token_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Paste your gcloud auth print-access-token here..."></textarea>
+                    </div>
                 </div>
             </div>
 
@@ -171,11 +177,38 @@
     <script>
         // --- Configuration ---
         const LOCATION = "us-central1";
-        const TEXT_MODEL_ID = "gemini-1.5-flash-001"; 
+        // Text model options
+        const textModels = {
+            "Gemini 2.5 Flash (Preview)✔️": "gemini-2.5-flash-preview-09-2025",
+            "Gemini 2.5 Flash-Lite (Preview)❌": "gemini-2.5-flash-lite-preview-09-2025",
+            "Gemini 2.5 Flash-Lite✔️": "gemini-2.5-flash-lite",
+            "Gemini 2.5 Flash with Live API native audio (Preview)❌": "gemini-live-2.5-flash-preview-native-audio-09-2025",
+            "Gemini 2.0 Flash with Live API (Preview)✔️": "gemini-2.0-flash-live-preview-04-09",
+            "Vertex AI Model Optimizer (Experimental)✔️": "model-optimizer-exp-04-09",
+            "Gemini 2.5 Pro✔️": "gemini-2.5-pro",
+            "Gemini 2.5 Flash✔️": "gemini-2.5-flash",
+            "Gemini 2.0 Flash✔️": "gemini-2.0-flash",
+            "Gemini 2.0 Flash-Lite✔️": "gemini-2.0-flash-lite"
+        };
 
+        // Imagen model options
         const imagenModels = {
-            "Imagen 3.0": { "imagen-3.0-generate-002": "GA 002" },
-            "Imagen 2.0": { "imagegeneration@006": "GA 006" },
+            "Imagen 4.0✔️": {
+                "imagen-4.0-generate-001": "imagen-4.0 001",
+                "imagen-4.0-fast-generate-001": "imagen-4.0 Fast generate 001",
+                "imagen-4.0-ultra-generate-001": "imagen-4.0-ultra-generate 001"
+            },
+            "Imagen 3.0✔️": {
+                "imagen-3.0-generate-002": "imagen-3.0-generate 002",
+                "imagen-3.0-generate-001": "imagen-3.0-generate 001",
+                "imagen-3.0-fast-generate-001": "imagen-3.0-fast-generate 001",
+                "imagen-3.0-capability-001": "imagen-3.0-capability 001"
+            },
+            "Imagen 2.0": {
+                "imagegeneration@006": "2.0 GA 006",
+                "imagegeneration@005": "2.0 GA 005",
+                "imagegeneration@002": "2.0 GA 002"
+            }
         };
 
         // --- UI Elements ---
@@ -186,6 +219,7 @@
             tokenInput: document.getElementById('token_input'),
             // Shared
             videoTopicInput: document.getElementById('video_topic_input'),
+            textModelSelect: document.getElementById('text_model_select'),
             // Title
             titleTab: document.getElementById('title_tab'),
             titleFullPrompt: document.getElementById('title_full_prompt'),
@@ -234,7 +268,7 @@ Instructions:
 - Consider using numbers, questions, or a "how-to" format.
 - Ensure the titles are optimized for YouTube search.
 - Do NOT add any extra text or explanation, just the numbered list of titles.
-
+- Character length must be between 90 to 100 only
 Example Format:
 1. Title Option 1
 2. Title Option 2
@@ -317,9 +351,10 @@ Key elements for a successful thumbnail (incorporate these):
             const topic = ui.videoTopicInput.value.trim();
             const token = ui.tokenInput.value.trim();
             const projectId = ui.projectIdInput.value.trim();
+            const textModelId = ui.textModelSelect.value;
             
-            if (!topic || !token || !projectId) {
-                alert("Please fill out all credential fields and the video topic.");
+            if (!topic || !token || !projectId || !textModelId) {
+                alert("Please fill out all credential fields, select a text model, and enter the video topic.");
                 return;
             }
 
@@ -336,7 +371,7 @@ Key elements for a successful thumbnail (incorporate these):
             generateBtn.textContent = 'Generating...';
 
             try {
-                const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${TEXT_MODEL_ID}:generateContent`;
+                const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${textModelId}:generateContent`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
                 
                 const response = await fetch(url, {
@@ -350,7 +385,7 @@ Key elements for a successful thumbnail (incorporate these):
                     throw new Error(`API Error: ${errorJson.error.message}`);
                 }
                 const result = await response.json();
-                const generatedText = result.candidates[0]?.content?.parts[0]?.text || "No content generated.";
+                const generatedText = result.candidates?.[0]?.content?.parts?.[0]?.text || "No content generated.";
                 
                 outputText.textContent = generatedText.trim();
                 outputText.classList.remove('hidden');
@@ -437,8 +472,20 @@ Key elements for a successful thumbnail (incorporate these):
             }
         }
 
+        function populateTextModels() {
+            const select = document.getElementById('text_model_select');
+            select.innerHTML = '';
+            for (const label in textModels) {
+                const option = document.createElement('option');
+                option.value = textModels[label];
+                option.textContent = label;
+                select.appendChild(option);
+            }
+        }
+
         function initializeApp() {
             populateImagenModels();
+            populateTextModels();
             openTab('title'); // Open the first tab by default
         }
 
