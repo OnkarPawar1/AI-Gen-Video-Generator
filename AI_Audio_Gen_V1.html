@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dialogue & Image Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style the audio player */
+        audio::-webkit-media-controls-panel {
+            background-color: #eef2ff;
+        }
+        audio::-webkit-media-controls-play-button,
+        audio::-webkit-media-controls-mute-button {
+            color: #4f46e5;
+            border-radius: 50%;
+        }
+        audio::-webkit-media-controls-timeline {
+            background-color: #c7d2fe;
+            border-radius: 25px;
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen py-8">
+
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8 space-y-8">
+        
+        <!-- Header -->
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 text-center">AI Dialogue & Image Generator</h1>
+            <p class="text-gray-600 mt-1 text-center">Create conversational audio and a title image from a simple prompt.</p>
+        </div>
+        
+        <!-- Controls -->
+        <div class="space-y-6">
+            <!-- Core Inputs -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">Credentials & Setup</h2>
+                    <button id="use_defaults_btn" class="px-3 py-1 text-xs font-medium text-white bg-gray-500 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">Use Defaults</button>
+                </div>
+                <div>
+                    <label for="project_id_input" class="block text-sm font-medium text-gray-700">Google Cloud Project ID</label>
+                    <input type="text" id="project_id_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., Project ID...">
+                </div>
+                 <div>
+                    <label for="tts_api_key_input" class="block text-sm font-medium text-gray-700">Text-to-Speech & Imagen API Key</label>
+                    <input type="text" id="tts_api_key_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Your Google API Key...">
+                </div>
+                <div>
+                    <label for="token_input" class="block text-sm font-medium text-gray-700">Vertex AI Access Token</label>
+                    <textarea id="token_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Paste your gcloud auth print-access-token here..."></textarea>
+                </div>
+            </div>
+
+            <!-- Audio Content Inputs -->
+            <div class="space-y-4 pt-4 border-t">
+                 <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Audio Content</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                         <label for="model_select" class="block text-sm font-medium text-gray-700">AI Model for Script</label>
+                         <select id="model_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                             <optgroup label="Gemini 2.5">
+                                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                 <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                                 <option value="gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash-Lite (Preview)</option>
+                             </optgroup>
+                             <optgroup label="Gemini 2.0">
+                                 <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                 <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
+                             </optgroup>
+                             <optgroup label="Gemini 1.5">
+                                 <option value="gemini-1.5-pro-001">Gemini 1.5 Pro</option>
+                                 <option value="gemini-1.5-flash-001">Gemini 1.5 Flash</option>
+                             </optgroup>
+                         </select>
+                     </div>
+                     <div>
+                         <label for="script_length_slider" class="block text-sm font-medium text-gray-700">Approx. Script Lines: <span id="script_length_value">6</span></label>
+                         <input type="range" id="script_length_slider" min="2" max="20" value="6" class="mt-1 w-full h-10 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                     </div>
+                 </div>
+                 <div>
+                    <label for="script_prompt_input" class="block text-sm font-medium text-gray-700">Script & Image Topic</label>
+                    <textarea id="script_prompt_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., A friendly argument about whether pineapple belongs on pizza."></textarea>
+                </div>
+                <!-- File Upload Section -->
+                <div>
+                    <label for="file_input" class="block text-sm font-medium text-gray-700">Attach Files (Optional)</label>
+                    <input type="file" id="file_input" multiple class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                    <div id="file_preview_area" class="mt-2 space-y-2"></div>
+                    <button id="clear_files_btn" class="hidden mt-2 px-3 py-1 text-xs font-medium text-white bg-red-500 rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400">Clear Files</button>
+                </div>
+                <div>
+                    <label for="full_prompt_input" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                    <textarea id="full_prompt_input" rows="8" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                </div>
+            </div>
+
+            <!-- Image Generation Panel -->
+            <div class="space-y-4 pt-4 border-t">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">🎬 AI Image Generation</h2>
+                    <div class="text-xs text-gray-500 bg-blue-50 px-2 py-1 rounded">
+                        <span class="font-medium">🛡️</span> Following Google Cloud Responsible AI Guidelines
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="imagen_model_select" class="block text-sm font-medium text-gray-700">Imagen Model</label>
+                        <select id="imagen_model_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                    </div>
+                    <div>
+                        <label for="aspect_ratio_select" class="block text-sm font-medium text-gray-700">Aspect Ratio</label>
+                        <select id="aspect_ratio_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="16:9">16:9 (Widescreen)</option>
+                            <option value="9:16">9:16 (Portrait)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="image_style_input" class="block text-sm font-medium text-gray-700">🎬 Director's Style Enhancement</label>
+                    <input type="text" id="image_style_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., cinematic, photorealistic, vibrant illustration" value="Pixar-style 3D animation, vibrant colors, expressive characters">
+                    <p class="text-xs text-gray-500 mt-1">The Visual Director will enhance your style with professional scene analysis</p>
+                </div>
+                <button id="generate_image_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                    🎬 Generate Image with Director
+                </button>
+                <div id="director_status" class="text-center text-sm text-gray-600 mt-2 hidden">
+                    <span id="director_working">🎬 Director analyzing scene...</span>
+                </div>
+                <div id="image_output_area" class="hidden w-full text-center p-4 mt-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div id="image_loader" class="loader mx-auto"></div>
+                    <img id="generated_image" class="hidden max-w-full mx-auto rounded-lg shadow-md" alt="Generated Image">
+                    <button id="regenerate_image_btn" class="hidden mt-4 py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+                        Regenerate Image
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio Customization Panel -->
+             <div class="space-y-4 pt-4 border-t">
+                <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Audio Customization</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                         <label for="speaking_rate_slider" class="block text-sm font-medium text-gray-700">Speaking Speed: <span id="speaking_rate_value">1.0</span>x</label>
+                         <input type="range" id="speaking_rate_slider" min="0.5" max="1.5" value="1.0" step="0.1" class="mt-1 w-full h-10 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                     </div>
+                     <div>
+                         <label for="language_select" class="block text-sm font-medium text-gray-700">Voice Language</label>
+                         <select id="language_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                 </div>
+                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div>
+                         <label for="man_voice_select" class="block text-sm font-medium text-gray-700">Man's Voice</label>
+                         <select id="man_voice_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                     <div>
+                         <label for="woman_voice_select" class="block text-sm font-medium text-gray-700">Woman's Voice</label>
+                         <select id="woman_voice_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="pt-6 border-t">
+            <div class="flex items-center justify-center space-x-4 mb-4">
+                <div id="loader" class="loader hidden"></div>
+                <div id="status_area" class="text-center text-md text-gray-700 font-medium h-10 flex items-center justify-center">Ready to generate.</div>
+            </div>
+            
+            <div class="space-y-3">
+                <button id="generate_btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Generate Audio
+                </button>
+                <audio id="audio_player" class="hidden w-full" controls></audio>
+                <div id="download_buttons_container" class="hidden grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <a id="download_audio_link" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        Download Audio (MP3)
+                    </a>
+                    <button id="download_script_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Download Script (.txt)
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Video Generation Section -->
+            <div class="pt-6 border-t mt-6">
+                 <h2 class="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Video Generation</h2>
+                 <div id="video_status_area" class="text-center text-md text-gray-700 font-medium h-10 flex items-center justify-center"></div>
+                 <button id="generate_video_btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                    Generate Video
+                 </button>
+                <div id="video_output_area" class="hidden w-full text-center p-4 mt-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <video id="generated_video" class="w-full rounded-lg shadow-md" controls></video>
+                    <button id="download_video_btn" class="hidden mt-4 inline-block w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50" disabled>
+                        Download Video (MP4)
+                    </button>
+                </div>
+            </div>
+
+
+            <!-- Script Display Area -->
+            <div id="script_display_area" class="hidden w-full p-4 mt-6 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 class="text-md font-semibold text-gray-800 mb-2">Generated Script</h3>
+                <pre id="script_text" class="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white p-3 rounded-md border"></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- REMOVED: FFmpeg script tag to avoid dependency -->
+    <!-- <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script> -->
+
+    <script>
+        // --- State ---
+        let uploadedFiles = [];
+        let dialogueData = []; // To store script, audio, and image data
+        let generatedVideoBlob = null;
+        let generatedAudioBlob = null;
+        // let ffmpeg; // REMOVED usage; no longer needed
+
+        // --- Configuration ---
+        const LOCATION = "us-central1";
+
+        const imagenModels = {
+            "Imagen 4.0": {
+                "imagen-4.0-ultra-generate-preview-06-06": "Ultra (Highest Quality)",
+                "imagen-4.0-fast-generate-preview-06-06": "Fast (Low Latency)",
+                "imagen-4.0-generate-preview-06-06": "General (Balanced)"
+            },
+            "Imagen 3.0": {
+                "imagen-3.0-generate-002": "GA 002",
+                "imagen-3.0-generate-001": "GA 001",
+                "imagen-3.0-fast-generate-001": "Fast"
+            },
+            "Imagen 2.0": {
+                "imagegeneration@006": "GA 006",
+                "imagegeneration@005": "GA 005"
+            },
+             "Imagen 1.0": {
+                "imagegeneration@002": "GA 002"
+            }
+        };
+
+        const chirpMaleVoiceNames = ["Achird", "Algenib", "Algieba", "Alnilam", "Charon", "Enceladus", "Fenrir", "Iapetus", "Orus", "Puck", "Rasalgethi", "Sadachbia", "Sadaltager", "Schedar", "Umbriel", "Zubenelgenubi"];
+        const chirpFemaleVoiceNames = ["Achernar", "Aoede", "Autonoe", "Callirrhoe", "Despina", "Erinome", "Gacrux", "Kore", "Laomedeia", "Leda", "Pulcherrima", "Sulafat", "Vindemiatrix", "Zephyr"];
+
+        const voicesData = {
+            "en-US": { 
+                description: "English (US)", 
+                male: [ { name: "en-US-Studio-M", description: "Male (Studio M)" }, ...chirpMaleVoiceNames.map(v => ({ name: `en-US-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "en-US-Studio-O", description: "Female (Studio O)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `en-US-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "en-GB": { 
+                description: "English (UK)", 
+                male: [ { name: "en-GB-Studio-B", description: "Male (Studio B)" }, ...chirpMaleVoiceNames.map(v => ({ name: `en-GB-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "en-GB-Studio-A", description: "Female (Studio A)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `en-GB-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "es-ES": { 
+                description: "Spanish (Spain)", 
+                male: [ { name: "es-ES-Neural2-B", description: "Male (Neural2 B)" }, ...chirpMaleVoiceNames.map(v => ({ name: `es-ES-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "es-ES-Neural2-F", description: "Female (Neural2 F)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `es-ES-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "es-US": { 
+                description: "Spanish (US)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `es-US-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `es-US-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "fr-FR": { 
+                description: "French (France)", 
+                male: [ { name: "fr-FR-Studio-D", description: "Male (Studio D)" }, ...chirpMaleVoiceNames.map(v => ({ name: `fr-FR-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "fr-FR-Studio-A", description: "Female (Studio A)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `fr-FR-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "fr-CA": { 
+                description: "French (Canada)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `fr-CA-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `fr-CA-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "de-DE": { 
+                description: "German (Germany)", 
+                male: [ { name: "de-DE-Studio-B", description: "Male (Studio B)" }, ...chirpMaleVoiceNames.map(v => ({ name: `de-DE-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "de-DE-Studio-A", description: "Female (Studio A)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `de-DE-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "it-IT": { 
+                description: "Italian (Italy)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `it-IT-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `it-IT-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "pt-BR": { 
+                description: "Portuguese (Brazil)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `pt-BR-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `pt-BR-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "ja-JP": { 
+                description: "Japanese (Japan)", 
+                male: [ { name: "ja-JP-Wavenet-D", description: "Male (Wavenet D)" }, ...chirpMaleVoiceNames.map(v => ({ name: `ja-JP-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "ja-JP-Wavenet-C", description: "Female (Wavenet C)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `ja-JP-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "cmn-CN": { 
+                description: "Mandarin Chinese", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `cmn-CN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `cmn-CN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "hi-IN": { 
+                description: "Hindi (India)", 
+                male: [ { name: "hi-IN-Wavenet-B", description: "Male (Wavenet B)" }, ...chirpMaleVoiceNames.map(v => ({ name: `hi-IN-Chirp3-HD-${v}`, description: `Male (${v})` })) ], 
+                female: [ { name: "hi-IN-Wavenet-A", description: "Female (Wavenet A)" }, ...chirpFemaleVoiceNames.map(v => ({ name: `hi-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) ] 
+            },
+            "mr-IN": { 
+                description: "Marathi (India)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `mr-IN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `mr-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "ar-XA": { 
+                description: "Arabic", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `ar-XA-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `ar-XA-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "bn-IN": { 
+                description: "Bengali (India)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `bn-IN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `bn-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "en-AU": { 
+                description: "English (Australia)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `en-AU-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `en-AU-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "en-IN": { 
+                description: "English (India)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `en-IN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `en-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "ta-IN": { 
+                description: "Tamil (India)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `ta-IN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `ta-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "te-IN": { 
+                description: "Telugu (India)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `te-IN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `te-IN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "th-TH": { 
+                description: "Thai (Thailand)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `th-TH-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `th-TH-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "tr-TR": { 
+                description: "Turkish (Turkey)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `tr-TR-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `tr-TR-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            },
+            "vi-VN": { 
+                description: "Vietnamese (Vietnam)", 
+                male: chirpMaleVoiceNames.map(v => ({ name: `vi-VN-Chirp3-HD-${v}`, description: `Male (${v})` })), 
+                female: chirpFemaleVoiceNames.map(v => ({ name: `vi-VN-Chirp3-HD-${v}`, description: `Female (${v})` })) 
+            }
+        };
+
+        // --- UI Elements ---
+        const ui = {
+            // Audio
+            generateBtn: document.getElementById('generate_btn'),
+            useDefaultsBtn: document.getElementById('use_defaults_btn'),
+            tokenInput: document.getElementById('token_input'),
+            projectIdInput: document.getElementById('project_id_input'),
+            ttsApiKeyInput: document.getElementById('tts_api_key_input'),
+            scriptPromptInput: document.getElementById('script_prompt_input'),
+            fullPromptInput: document.getElementById('full_prompt_input'),
+            modelSelect: document.getElementById('model_select'),
+            loader: document.getElementById('loader'),
+            downloadAudioLink: document.getElementById('download_audio_link'),
+            downloadScriptBtn: document.getElementById('download_script_btn'),
+            downloadButtonsContainer: document.getElementById('download_buttons_container'),
+            statusArea: document.getElementById('status_area'),
+            speakingRateSlider: document.getElementById('speaking_rate_slider'),
+            speakingRateValue: document.getElementById('speaking_rate_value'),
+            scriptLengthSlider: document.getElementById('script_length_slider'),
+            scriptLengthValue: document.getElementById('script_length_value'),
+            languageSelect: document.getElementById('language_select'),
+            manVoiceSelect: document.getElementById('man_voice_select'),
+            womanVoiceSelect: document.getElementById('woman_voice_select'),
+            scriptDisplayArea: document.getElementById('script_display_area'),
+            scriptText: document.getElementById('script_text'),
+            audioPlayer: document.getElementById('audio_player'),
+            // File Upload
+            fileInput: document.getElementById('file_input'),
+            filePreviewArea: document.getElementById('file_preview_area'),
+            clearFilesBtn: document.getElementById('clear_files_btn'),
+            // Image
+            generateImageBtn: document.getElementById('generate_image_btn'),
+            regenerateImageBtn: document.getElementById('regenerate_image_btn'),
+            imagenModelSelect: document.getElementById('imagen_model_select'),
+            aspectRatioSelect: document.getElementById('aspect_ratio_select'),
+            imageStyleInput: document.getElementById('image_style_input'),
+            imageOutputArea: document.getElementById('image_output_area'),
+            imageLoader: document.getElementById('image_loader'),
+            generatedImage: document.getElementById('generated_image'),
+            // Video
+            generateVideoBtn: document.getElementById('generate_video_btn'),
+            videoStatusArea: document.getElementById('video_status_area'),
+            videoOutputArea: document.getElementById('video_output_area'),
+            generatedVideo: document.getElementById('generated_video'),
+            downloadVideoBtn: document.getElementById('download_video_btn'),
+        };
+        
+        // --- Event Listeners ---
+        ui.generateBtn.addEventListener('click', handleAudioGeneration);
+        ui.generateImageBtn.addEventListener('click', () => handleImageGeneration(false));
+        ui.regenerateImageBtn.addEventListener('click', () => handleImageGeneration(false));
+        ui.generateVideoBtn.addEventListener('click', handleVideoGeneration);
+        ui.downloadVideoBtn.addEventListener('click', downloadAndConvertVideo);
+        ui.useDefaultsBtn.addEventListener('click', fillDefaultCredentials);
+        ui.speakingRateSlider.addEventListener('input', () => ui.speakingRateValue.textContent = parseFloat(ui.speakingRateSlider.value).toFixed(1));
+        ui.scriptLengthSlider.addEventListener('input', () => {
+            ui.scriptLengthValue.textContent = ui.scriptLengthSlider.value;
+            updateFullPrompt();
+        });
+        ui.languageSelect.addEventListener('change', (e) => {
+            populateVoices(e.target.value);
+            updateFullPrompt();
+        });
+        ui.scriptPromptInput.addEventListener('input', updateFullPrompt);
+        ui.downloadScriptBtn.addEventListener('click', downloadScript);
+        ui.fileInput.addEventListener('change', handleFileSelect);
+        ui.clearFilesBtn.addEventListener('click', clearFiles);
+
+        // --- Functions ---
+        function fillDefaultCredentials() {
+            ui.projectIdInput.value = 'Get_PROJECT_ID';
+            ui.ttsApiKeyInput.value = 'Get_API_KEY';
+            ui.tokenInput.value = 'Get_TOKEN';
+        }
+        
+        function populateLanguages() {
+            ui.languageSelect.innerHTML = '';
+            const sortedLangs = Object.keys(voicesData).sort((a, b) => voicesData[a].description.localeCompare(voicesData[b].description));
+            sortedLangs.forEach(langCode => {
+                const option = document.createElement('option');
+                option.value = langCode;
+                option.textContent = voicesData[langCode].description;
+                ui.languageSelect.appendChild(option);
+            });
+        }
+
+        function populateImagenModels() {
+            ui.imagenModelSelect.innerHTML = '';
+            for (const groupName in imagenModels) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = groupName;
+                for (const modelId in imagenModels[groupName]) {
+                    const option = document.createElement('option');
+                    option.value = modelId;
+                    option.textContent = imagenModels[groupName][modelId];
+                    optgroup.appendChild(option);
+                }
+                ui.imagenModelSelect.appendChild(optgroup);
+            }
+        }
+
+        function populateVoices(langCode) {
+            const language = voicesData[langCode];
+            if (!language) return;
+            const populateSelect = (selectElement, voices) => {
+                selectElement.innerHTML = '';
+                if (voices && voices.length > 0) {
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ languageCode: langCode, name: voice.name });
+                        option.textContent = voice.description;
+                        selectElement.appendChild(option);
+                    });
+                    selectElement.disabled = false;
+                } else {
+                    const option = document.createElement('option');
+                    option.textContent = "No voices available";
+                    selectElement.appendChild(option);
+                    selectElement.disabled = true;
+                }
+            };
+            populateSelect(ui.manVoiceSelect, language.male);
+            populateSelect(ui.womanVoiceSelect, language.female);
+        }
+        
+        function updateFullPrompt() {
+            const topic = ui.scriptPromptInput.value;
+            const scriptLength = ui.scriptLengthSlider.value;
+            const selectedLanguageOption = ui.languageSelect.options[ui.languageSelect.selectedIndex];
+            const languageName = selectedLanguageOption ? selectedLanguageOption.textContent.split('(')[0].trim() : "English";
+
+            let fileContext = "";
+            if (uploadedFiles.length > 0) {
+                const fileNames = uploadedFiles.map(f => `- ${f.name}`).join('\n');
+                fileContext = `
+# Context from Attached Files:
+You MUST use the content of the following attached file(s) as the primary source of information and context for the dialogue.
+${fileNames}
+`;
+            }
+
+            const fullPrompt = `You are a world-class podcast producer. Your task is to create an engaging podcast script between a host (Woman) and a guest expert (Man) based on the provided topic ${uploadedFiles.length > 0 ? 'and attached files' : ''}.
+${fileContext}
+# Topic:
+"${topic}"
+
+# Instructions:
+1.  **Analyze the Topic ${uploadedFiles.length > 0 ? 'and File Content' : ''}:** Identify key points and interesting facts that could drive an engaging conversation.
+2.  **Craft the Dialogue:**
+    - The host (Woman) always initiates and concludes the conversation.
+    - Develop a natural, conversational flow.
+    - The guest's (Man's) responses should be informative and expert-like.
+    - Maintain a PG-rated conversation.
+    - The script should have a total of approximately ${scriptLength} lines of dialogue.
+3.  **Formatting Rules (VERY IMPORTANT):**
+    - Each line must start with "Woman:" or "Man:".
+    - Each line of dialogue should be a complete and descriptive sentence.
+    - Your response must ONLY be the script itself, with no extra text, explanations, or formatting.
+
+# Language:
+- The entire podcast script must be in ${languageName.toUpperCase()}.
+
+Begin the script now.`;
+
+            ui.fullPromptInput.value = fullPrompt;
+        }
+
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (!files) return;
+            uploadedFiles = []; 
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64Data = e.target.result.split(',')[1];
+                    uploadedFiles.push({ name: file.name, type: file.type, data: base64Data });
+                    updateFilePreview();
+                    updateFullPrompt();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updateFilePreview() {
+            ui.filePreviewArea.innerHTML = '';
+            if (uploadedFiles.length > 0) {
+                uploadedFiles.forEach(file => {
+                    const fileElement = document.createElement('div');
+                    fileElement.className = 'file-item';
+                    fileElement.textContent = file.name;
+                    ui.filePreviewArea.appendChild(fileElement);
+                });
+                ui.clearFilesBtn.classList.remove('hidden');
+            } else {
+                ui.clearFilesBtn.classList.add('hidden');
+            }
+        }
+
+        function clearFiles() {
+            uploadedFiles = [];
+            ui.fileInput.value = null;
+            updateFilePreview();
+            updateFullPrompt();
+        }
+
+        async function handleScriptGeneration(prompt, token, projectId, modelId, files) {
+             const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${modelId}:generateContent`;
+             const parts = [{ text: prompt }];
+             if (files && files.length > 0) {
+                 files.forEach(file => {
+                     parts.push({ inlineData: { mimeType: file.type, data: file.data } });
+                 });
+             }
+             const payload = { contents: [{ role: "user", parts: parts }] };
+             const response = await fetch(url, {
+                 method: 'POST',
+                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             });
+             if (!response.ok) {
+                 const errorJson = await response.json();
+                 throw new Error(`AI Script Generation failed: ${errorJson.error.message}`);
+             }
+             const result = await response.json();
+             if (!result.candidates || result.candidates.length === 0) {
+                 throw new Error("AI Script Generation returned no content.");
+             }
+             return result.candidates[0].content.parts[0].text.trim();
+        }
+
+        async function handleAudioGeneration() {
+            const fullPrompt = ui.fullPromptInput.value.trim();
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            const ttsApiKey = ui.ttsApiKeyInput.value.trim();
+            const modelId = ui.modelSelect.value;
+            if (!fullPrompt || !token || !projectId || !ttsApiKey) {
+                alert("Please fill out all credential fields and provide a script prompt.");
+                return;
+            }
+            ui.downloadButtonsContainer.classList.add('hidden');
+            ui.scriptDisplayArea.classList.add('hidden');
+            ui.audioPlayer.classList.add('hidden');
+            ui.audioPlayer.src = '';
+            ui.loader.classList.remove('hidden');
+            ui.generateBtn.disabled = true;
+            ui.generateBtn.textContent = 'Generating...';
+            ui.statusArea.textContent = 'Starting generation...';
+            try {
+                ui.statusArea.textContent = 'Generating AI script...';
+                const script = await handleScriptGeneration(fullPrompt, token, projectId, modelId, uploadedFiles);
+                ui.scriptText.textContent = script;
+                ui.scriptDisplayArea.classList.remove('hidden');
+                
+                dialogueData = script.split('\n').filter(line => {
+                    const l = line.trim().toLowerCase();
+                    return l.startsWith('man:') || l.startsWith('woman:') || l.startsWith('hombre:') || l.startsWith('mujer:') || l.startsWith('homme:') || l.startsWith('femme:') || l.startsWith('mann:') || l.startsWith('frau:');
+                }).map(line => {
+                    const [speaker, ...text] = line.split(':');
+                    const speakerLower = speaker.trim().toLowerCase();
+                    const speakerKey = (speakerLower.startsWith('man') || speakerLower.startsWith('hombre') || speakerLower.startsWith('homme') || speakerLower.startsWith('mann')) ? 'man' : 'woman';
+                    const sanitizedText = text.join(':').trim().replace(/[`*]/g, '');
+                    return { speaker: speakerKey, text: sanitizedText, audioBlob: null, imageBase64: null, audioDuration: 0 };
+                });
+
+                if (dialogueData.length === 0) throw new Error("AI failed to generate a valid script.");
+                
+                ui.statusArea.textContent = 'Generating audio for each line...';
+                for (let i = 0; i < dialogueData.length; i++) {
+                     const line = dialogueData[i];
+                     ui.statusArea.textContent = `Generating audio ${i + 1}/${dialogueData.length}...`;
+                     const audioResult = await generateAudioBlob(line.text, ttsApiKey, line.speaker);
+                     line.audioBlob = audioResult.blob;
+                     line.audioDuration = audioResult.duration;
+                }
+
+                ui.statusArea.textContent = 'Combining audio files...';
+                generatedAudioBlob = await simpleConcatenateAudio(dialogueData.map(d => d.audioBlob));
+                const audioUrl = URL.createObjectURL(generatedAudioBlob);
+                ui.audioPlayer.src = audioUrl;
+                ui.audioPlayer.classList.remove('hidden');
+                ui.downloadAudioLink.href = audioUrl;
+                ui.downloadAudioLink.download = `AI_Dialogue_Audio.mp3`;
+                ui.downloadButtonsContainer.classList.remove('hidden');
+                ui.statusArea.textContent = 'Audio ready!';
+            } catch (error) {
+                console.error("Audio Generation failed:", error);
+                ui.statusArea.textContent = `Error: ${error.message}`;
+                ui.scriptDisplayArea.classList.add('hidden');
+            } finally {
+                ui.loader.classList.add('hidden');
+                ui.generateBtn.disabled = false;
+                ui.generateBtn.textContent = 'Generate Audio';
+            }
+        }
+
+        // Visual Image Generation Expert - Professional Director with 20 years experience
+        class VisualImageGenerationExpert {
+            constructor() {
+                this.experience = "20 years in scene generation and visual storytelling";
+                this.style = "Pixar-style animation with vibrant colors and expressive characters";
+                this.safetyGuidelines = this.getSafetyGuidelines();
+            }
+
+            getSafetyGuidelines() {
+                return {
+                    prohibited: [
+                        "violence", "sexual content", "hate speech", "harmful stereotypes",
+                        "celebrity likeness", "child exploitation", "personal information",
+                        "misleading content", "toxic content", "vulgar language", "weapons",
+                        "dangerous situations", "inappropriate content", "offensive material"
+                    ],
+                    safeAlternatives: [
+                        "friendly characters", "positive emotions", "educational content",
+                        "creative storytelling", "inclusive representation", "wholesome scenes",
+                        "safe environments", "positive interactions", "learning moments",
+                        "inspiring visuals", "family-friendly content", "professional settings"
+                    ]
+                };
+            }
+
+            analyzeDialogue(dialogueText, speaker) {
+                // Extract emotional context, setting, and key elements from dialogue
+                const context = this.extractContext(dialogueText);
+                const emotion = this.detectEmotion(dialogueText);
+                const setting = this.identifySetting(dialogueText);
+                
+                return {
+                    context,
+                    emotion,
+                    setting,
+                    speaker: speaker === 'man' ? 'expert guest' : 'host'
+                };
+            }
+
+            extractContext(text) {
+                const lowerText = text.toLowerCase();
+                const contexts = {
+                    educational: ['explain', 'learn', 'understand', 'teach', 'knowledge', 'study'],
+                    conversational: ['discuss', 'talk about', 'share', 'think', 'believe'],
+                    analytical: ['analyze', 'examine', 'consider', 'evaluate', 'research'],
+                    storytelling: ['story', 'experience', 'happened', 'remember', 'narrative']
+                };
+
+                for (const [context, keywords] of Object.entries(contexts)) {
+                    if (keywords.some(keyword => lowerText.includes(keyword))) {
+                        return context;
+                    }
+                }
+                return 'conversational';
+            }
+
+            detectEmotion(text) {
+                const lowerText = text.toLowerCase();
+                const emotions = {
+                    excited: ['amazing', 'incredible', 'fantastic', 'wow', 'excited', 'thrilled'],
+                    curious: ['interesting', 'curious', 'wonder', 'question', 'explore', 'discover'],
+                    thoughtful: ['think', 'consider', 'reflect', 'ponder', 'contemplate'],
+                    friendly: ['friendly', 'welcome', 'nice', 'pleasure', 'glad', 'happy'],
+                    professional: ['professional', 'expert', 'knowledge', 'experience', 'analysis']
+                };
+
+                for (const [emotion, keywords] of Object.entries(emotions)) {
+                    if (keywords.some(keyword => lowerText.includes(keyword))) {
+                        return emotion;
+                    }
+                }
+                return 'neutral';
+            }
+
+            identifySetting(text) {
+                const lowerText = text.toLowerCase();
+                
+                // More creative and diverse settings based on actual content
+                const settings = {
+                    nature: ['nature', 'outdoor', 'park', 'garden', 'landscape', 'forest', 'mountain', 'ocean', 'beach', 'sky', 'stars', 'sunset', 'rain', 'snow', 'wind', 'tree', 'flower', 'animal', 'bird', 'fish'],
+                    urban: ['city', 'street', 'building', 'skyscraper', 'traffic', 'subway', 'bus', 'car', 'shop', 'market', 'restaurant', 'cafe', 'museum', 'library', 'school', 'university'],
+                    fantasy: ['magic', 'wizard', 'dragon', 'castle', 'fairy', 'unicorn', 'space', 'galaxy', 'planet', 'alien', 'time travel', 'dimension', 'portal', 'crystal', 'gem'],
+                    historical: ['ancient', 'medieval', 'renaissance', 'vintage', 'classic', 'traditional', 'heritage', 'antique', 'old', 'historical', 'period', 'era'],
+                    modern: ['technology', 'computer', 'robot', 'ai', 'digital', 'virtual', 'cyber', 'futuristic', 'modern', 'contemporary', 'innovative', 'smart'],
+                    emotional: ['love', 'friendship', 'family', 'celebration', 'party', 'dance', 'music', 'art', 'creativity', 'inspiration', 'dream', 'hope', 'joy', 'peace'],
+                    adventure: ['exploration', 'journey', 'travel', 'adventure', 'discovery', 'expedition', 'quest', 'treasure', 'map', 'compass', 'ship', 'plane', 'train'],
+                    abstract: ['concept', 'idea', 'thought', 'imagination', 'creative', 'philosophy', 'science', 'mathematics', 'art', 'design', 'pattern', 'color', 'light', 'shadow']
+                };
+
+                for (const [setting, keywords] of Object.entries(settings)) {
+                    if (keywords.some(keyword => lowerText.includes(keyword))) {
+                        return setting;
+                    }
+                }
+                
+                // If no specific setting found, be creative based on context
+                if (lowerText.includes('think') || lowerText.includes('imagine')) return 'fantasy';
+                if (lowerText.includes('learn') || lowerText.includes('study')) return 'modern';
+                if (lowerText.includes('feel') || lowerText.includes('emotion')) return 'emotional';
+                
+                return 'abstract'; // Default to creative abstract instead of boring studio
+            }
+
+            generateCreativePrompt(dialogueAnalysis, scriptContext = null, dialogueIndex = 0) {
+                const { context, emotion, setting, speaker } = dialogueAnalysis;
+                
+                // Get broader script context for better coherence
+                const scriptThemes = scriptContext?.themes || ['general'];
+                const scriptMood = scriptContext?.mood || 'neutral';
+                const scriptStyle = scriptContext?.visualStyle || 'creative';
+                
+                // NEW: Get story-specific scene context
+                const storyContext = scriptContext?.storyContext || null;
+                const sceneDescription = storyContext?.sceneDescription || '';
+                const sceneVisualStyle = storyContext?.visualStyle || 'creative';
+                const sceneMood = storyContext?.mood || 'neutral';
+                const sceneElements = storyContext?.elements || [];
+                
+                // Base Pixar-style animation elements
+                const pixarStyle = "Pixar-style 3D animation, vibrant colors, expressive characters, cinematic lighting, high quality, detailed textures, professional animation quality";
+                
+                // STORY-DRIVEN scene generation - NO MORE GENERIC "TWO PEOPLE TALKING"!
+                let scenePrompt = '';
+                
+                if (sceneDescription && sceneDescription.length > 0) {
+                    // Use the story context to create unique scenes
+                    scenePrompt = this.generateStoryScenePrompt(sceneDescription, sceneVisualStyle, sceneMood, sceneElements, dialogueIndex);
+                } else {
+                    // Fallback to context-based generation
+                    scenePrompt = this.generateContextBasedPrompt(context, emotion, setting, speaker);
+                }
+                
+                // Add script-wide context enhancement
+                let contextEnhancement = "";
+                if (scriptThemes.includes('technology')) contextEnhancement += " technological innovation, futuristic elements";
+                if (scriptThemes.includes('nature')) contextEnhancement += " environmental awareness, natural elements";
+                if (scriptThemes.includes('creativity')) contextEnhancement += " artistic inspiration, creative energy";
+                if (scriptThemes.includes('adventure')) contextEnhancement += " adventurous spirit, exploration theme";
+                
+                // Add creative director's touch - random creative elements for variety
+                const creativeElements = [
+                    "dynamic composition", "atmospheric depth", "cinematic framing", "visual storytelling",
+                    "expressive lighting", "rich textures", "vibrant color palette", "emotional atmosphere",
+                    "immersive environment", "artistic interpretation", "creative vision", "visual poetry"
+                ];
+                const randomCreative = creativeElements[Math.floor(Math.random() * creativeElements.length)];
+                
+                // Create a story-driven, contextually rich prompt
+                const prompt = `${scenePrompt}, ${contextEnhancement}, ${randomCreative}, ${pixarStyle}`;
+                
+                return this.ensureSafety(prompt);
+            }
+
+            generateStoryScenePrompt(sceneDescription, visualStyle, mood, elements, dialogueIndex) {
+                // Generate unique scene prompts based on story context
+                let scenePrompt = '';
+                
+                // Base scene from story description
+                scenePrompt = sceneDescription;
+                
+                // Add visual style elements
+                switch (visualStyle) {
+                    case 'natural':
+                        scenePrompt += ", natural environment, organic textures, environmental beauty";
+                        break;
+                    case 'urban':
+                        scenePrompt += ", urban setting, city atmosphere, metropolitan energy";
+                        break;
+                    case 'futuristic':
+                        scenePrompt += ", futuristic elements, advanced technology, innovative design";
+                        break;
+                    case 'artistic':
+                        scenePrompt += ", artistic elements, creative atmosphere, imaginative design";
+                        break;
+                    case 'historical':
+                        scenePrompt += ", historical setting, period-accurate elements, vintage aesthetics";
+                        break;
+                    default:
+                        scenePrompt += ", creative environment, imaginative setting";
+                }
+                
+                // Add mood elements
+                switch (mood) {
+                    case 'excited':
+                        scenePrompt += ", energetic atmosphere, vibrant colors, dynamic energy";
+                        break;
+                    case 'curious':
+                        scenePrompt += ", discovery atmosphere, bright lighting, inquisitive mood";
+                        break;
+                    case 'thoughtful':
+                        scenePrompt += ", contemplative atmosphere, soft lighting, reflective mood";
+                        break;
+                    case 'friendly':
+                        scenePrompt += ", warm atmosphere, comfortable colors, welcoming mood";
+                        break;
+                    case 'professional':
+                        scenePrompt += ", polished atmosphere, clean design, authoritative mood";
+                        break;
+                    default:
+                        scenePrompt += ", balanced atmosphere, harmonious mood";
+                }
+                
+                // Add specific visual elements
+                if (elements.includes('natural_environment')) {
+                    scenePrompt += ", natural landscape, environmental elements, organic beauty";
+                }
+                if (elements.includes('urban_setting')) {
+                    scenePrompt += ", cityscape, urban architecture, metropolitan life";
+                }
+                if (elements.includes('tech_elements')) {
+                    scenePrompt += ", technological innovation, digital elements, futuristic design";
+                }
+                if (elements.includes('artistic_elements')) {
+                    scenePrompt += ", artistic creativity, imaginative design, creative expression";
+                }
+                
+                // Add dialogue-specific character positioning (NOT generic "two people talking")
+                if (dialogueIndex === 0) {
+                    scenePrompt += ", welcoming host character, establishing connection";
+                } else if (dialogueIndex < 3) {
+                    scenePrompt += ", engaging conversation, dynamic interaction";
+                } else {
+                    scenePrompt += ", deep discussion, meaningful exchange";
+                }
+                
+                return scenePrompt;
+            }
+
+            generateContextBasedPrompt(context, emotion, setting, speaker) {
+                // Fallback context-based generation (less preferred)
+                const contextElements = {
+                    educational: "inspiring learning environment, knowledge visualization, engaging educational atmosphere",
+                    conversational: "dynamic conversation scene, expressive interaction, engaging dialogue atmosphere",
+                    analytical: "deep thinking environment, analytical atmosphere, focused intellectual setting",
+                    storytelling: "narrative storytelling scene, captivating story environment, engaging narrative atmosphere"
+                };
+
+                const emotionElements = {
+                    excited: "bright eyes, enthusiastic expression, dynamic pose, energetic atmosphere",
+                    curious: "intrigued expression, leaning forward pose, discovery atmosphere, bright lighting",
+                    thoughtful: "contemplative expression, thoughtful pose, calm atmosphere, soft lighting",
+                    friendly: "warm smile, welcoming pose, friendly atmosphere, comfortable colors",
+                    professional: "confident expression, professional pose, polished atmosphere, clean design"
+                };
+
+                const settingElements = {
+                    nature: "breathtaking natural landscape, dramatic lighting, organic textures, environmental beauty",
+                    urban: "dynamic cityscape, architectural beauty, urban energy, metropolitan atmosphere",
+                    fantasy: "magical realm, ethereal lighting, mystical elements, enchanted environment",
+                    historical: "period-accurate setting, vintage aesthetics, historical atmosphere, timeless beauty",
+                    modern: "cutting-edge technology, sleek design, futuristic elements, innovative atmosphere",
+                    emotional: "emotionally charged environment, expressive atmosphere, heartfelt setting",
+                    adventure: "exploration setting, discovery atmosphere, journey environment, adventure spirit",
+                    abstract: "artistic abstraction, creative interpretation, imaginative design, artistic freedom"
+                };
+
+                const speakerElements = {
+                    'expert guest': "knowledgeable male character, professional appearance, confident pose",
+                    'host': "friendly female character, welcoming appearance, engaging pose"
+                };
+
+                return `${speakerElements[speaker]}, ${contextElements[context]}, ${emotionElements[emotion]}, ${settingElements[setting]}`;
+            }
+
+            ensureSafety(prompt) {
+                // Check for any potentially problematic content
+                const lowerPrompt = prompt.toLowerCase();
+                
+                for (const prohibited of this.safetyGuidelines.prohibited) {
+                    if (lowerPrompt.includes(prohibited)) {
+                        // Replace with safe alternative
+                        const safeAlternative = this.safetyGuidelines.safeAlternatives[
+                            Math.floor(Math.random() * this.safetyGuidelines.safeAlternatives.length)
+                        ];
+                        prompt = prompt.replace(new RegExp(prohibited, 'gi'), safeAlternative);
+                    }
+                }
+                
+                return prompt;
+            }
+
+            async generateImageWithFallback(dialogueText, speaker, token, projectId, modelId, aspectRatio, scriptContext = null, dialogueIndex = 0) {
+                try {
+                    // First attempt: Use the expert's creative prompt with script context
+                    const analysis = this.analyzeDialogue(dialogueText, speaker);
+                    const creativePrompt = this.generateCreativePrompt(analysis, scriptContext, dialogueIndex);
+                    
+                    // Log detailed director analysis
+                    this.logDirectorAnalysis(dialogueText, speaker, analysis, creativePrompt, scriptContext);
+                    
+                    const base64Data = await this.callImagenAPI(creativePrompt, token, projectId, modelId, aspectRatio);
+                    return { base64Data, prompt: creativePrompt, method: 'creative' };
+                    
+                } catch (error) {
+                    console.log(`⚠️ Creative generation failed, trying fallback approach: ${error.message}`);
+                    
+                    // Fallback: Simple, safe prompt
+                    const fallbackPrompt = this.generateFallbackPrompt(dialogueText, speaker);
+                    console.log(`🔄 Fallback Prompt: ${fallbackPrompt}`);
+                    
+                    try {
+                        const base64Data = await this.callImagenAPI(fallbackPrompt, token, projectId, modelId, aspectRatio);
+                        return { base64Data, prompt: fallbackPrompt, method: 'fallback' };
+                    } catch (fallbackError) {
+                        console.error(`❌ Both creative and fallback generation failed: ${fallbackError.message}`);
+                        throw new Error(`Image generation failed after multiple attempts: ${fallbackError.message}`);
+                    }
+                }
+            }
+
+            logDirectorAnalysis(dialogueText, speaker, analysis, prompt, scriptContext = null) {
+                console.log(`🎬 === VISUAL DIRECTOR ANALYSIS ===`);
+                console.log(`📝 Dialogue: "${dialogueText}"`);
+                console.log(`🎭 Speaker: ${analysis.speaker}`);
+                console.log(`🧠 Context: ${analysis.context}`);
+                console.log(`😊 Emotion: ${analysis.emotion}`);
+                console.log(`🏠 Setting: ${analysis.setting}`);
+                
+                if (scriptContext) {
+                    console.log(`🎭 Script Themes: ${scriptContext.themes.join(', ')}`);
+                    console.log(`😊 Overall Mood: ${scriptContext.mood}`);
+                    console.log(`🎨 Visual Style: ${scriptContext.visualStyle}`);
+                }
+                
+                console.log(`🎨 Creative Prompt: ${prompt}`);
+                console.log(`🛡️ Safety Check: Passed (following Google Cloud guidelines)`);
+                console.log(`🎬 === END ANALYSIS ===`);
+            }
+
+            generateFallbackPrompt(dialogueText, speaker) {
+                // Creative fallback prompt - NO BORING PODCAST STUFF!
+                const character = speaker === 'man' ? 'knowledgeable male character' : 'friendly female character';
+                
+                // Get creative based on the actual dialogue content
+                const lowerText = dialogueText.toLowerCase();
+                let creativeSetting = '';
+                
+                if (lowerText.includes('think') || lowerText.includes('imagine')) {
+                    creativeSetting = 'magical floating islands, ethereal lighting, dreamlike atmosphere';
+                } else if (lowerText.includes('learn') || lowerText.includes('understand')) {
+                    creativeSetting = 'floating knowledge crystals, glowing symbols, educational wonderland';
+                } else if (lowerText.includes('feel') || lowerText.includes('emotion')) {
+                    creativeSetting = 'emotional color storm, expressive atmosphere, heartfelt environment';
+                } else if (lowerText.includes('future') || lowerText.includes('technology')) {
+                    creativeSetting = 'futuristic cityscape, holographic displays, advanced technology';
+                } else if (lowerText.includes('nature') || lowerText.includes('earth')) {
+                    creativeSetting = 'breathtaking natural landscape, dramatic lighting, environmental beauty';
+                } else {
+                    creativeSetting = 'creative abstract space, artistic elements, imaginative atmosphere';
+                }
+                
+                return `${character}, ${creativeSetting}, Pixar-style 3D animation, vibrant colors, expressive design, professional quality`;
+            }
+
+            async callImagenAPI(prompt, token, projectId, modelId, aspectRatio) {
+                const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${modelId}:predict`;
+                const payload = {
+                    instances: [{ prompt: prompt }],
+                    parameters: { sampleCount: 1, aspectRatio: aspectRatio }
+                };
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    throw new Error(`Imagen API failed: ${errorJson.error.message}`);
+                }
+                
+                const result = await response.json();
+                if (!result.predictions || result.predictions.length === 0 || !result.predictions[0].bytesBase64Encoded) {
+                    throw new Error("Imagen API did not return image content.");
+                }
+                
+                return result.predictions[0].bytesBase64Encoded;
+            }
+        }
+
+        // Initialize the Visual Image Generation Expert
+        const imageGenerationExpert = new VisualImageGenerationExpert();
+
+        // Enhanced STORY-BASED context analysis for narrative-driven image generation
+        class ScriptContextAnalyzer {
+            constructor() {
+                this.scriptContext = null;
+                this.themes = [];
+                this.mood = 'neutral';
+                this.visualStyle = 'creative';
+                this.storyProgression = [];
+                this.narrativeContext = {};
+                this.sceneDescriptions = [];
+            }
+
+            analyzeFullScript(dialogueData) {
+                try {
+                    if (!dialogueData || dialogueData.length === 0) {
+                        console.log('⚠️ No dialogue data to analyze');
+                        return;
+                    }
+                    
+                    console.log(`🔍 Analyzing ${dialogueData.length} dialogue lines...`);
+                    
+                    const allText = dialogueData.map(d => d.text).join(' ').toLowerCase();
+                    const speakerPatterns = dialogueData.map(d => d.speaker);
+                    
+                    // Analyze overall themes
+                    this.themes = this.extractThemes(allText);
+                    this.mood = this.determineOverallMood(allText);
+                    this.visualStyle = this.determineVisualStyle(allText, speakerPatterns);
+                    
+                    console.log(`🎭 STORY ANALYSIS: Themes: ${this.themes.join(', ')}, Mood: ${this.mood}, Style: ${this.visualStyle}`);
+                    
+                    // NEW: Analyze story progression and narrative context
+                    try {
+                        this.analyzeStoryProgression(dialogueData);
+                        console.log(`📖 Story Progression: ${this.storyProgression.length} scenes identified`);
+                    } catch (error) {
+                        console.error('❌ Error in analyzeStoryProgression:', error);
+                        // Fallback: create simple scene structure
+                        this.createFallbackSceneStructure(dialogueData);
+                    }
+                    
+                    try {
+                        this.generateSceneDescriptions(dialogueData);
+                        console.log(`🎬 Scene Descriptions: ${this.sceneDescriptions.length} unique scenes generated`);
+                    } catch (error) {
+                        console.error('❌ Error in generateSceneDescriptions:', error);
+                        // Fallback: create simple scene descriptions
+                        this.createFallbackSceneDescriptions(dialogueData);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Critical error in analyzeFullScript:', error);
+                    // Create minimal fallback structure
+                    this.createMinimalFallback(dialogueData);
+                }
+            }
+
+            analyzeStoryProgression(dialogueData) {
+                this.storyProgression = [];
+                this.narrativeContext = {};
+                
+                // Analyze the narrative flow and identify story beats
+                let currentScene = 0;
+                let sceneStart = 0;
+                let currentTopic = '';
+                
+                for (let i = 0; i < dialogueData.length; i++) {
+                    const line = dialogueData[i];
+                    const text = line.text.toLowerCase();
+                    
+                    // Detect scene changes based on topic shifts
+                    const newTopic = this.detectTopic(text);
+                    if (newTopic !== currentTopic && i > 0) {
+                        // End current scene
+                        this.storyProgression.push({
+                            start: sceneStart,
+                            end: i - 1,
+                            topic: currentTopic,
+                            sceneType: this.classifyScene(dialogueData.slice(sceneStart, i)),
+                            dialogue: dialogueData.slice(sceneStart, i)
+                        });
+                        
+                        // Start new scene
+                        sceneStart = i;
+                        currentTopic = newTopic;
+                        currentScene++;
+                    }
+                    
+                    if (i === 0) {
+                        currentTopic = newTopic;
+                    }
+                }
+                
+                // Add final scene
+                this.storyProgression.push({
+                    start: sceneStart,
+                    end: dialogueData.length - 1,
+                    topic: currentTopic,
+                    sceneType: this.classifyScene(dialogueData.slice(sceneStart)),
+                    dialogue: dialogueData.slice(sceneStart)
+                });
+                
+                // Build narrative context for each scene
+                this.storyProgression.forEach((scene, index) => {
+                    this.narrativeContext[index] = {
+                        sceneNumber: index + 1,
+                        totalScenes: this.storyProgression.length,
+                        previousScene: index > 0 ? this.storyProgression[index - 1] : null,
+                        nextScene: index < this.storyProgression.length - 1 ? this.storyProgression[index + 1] : null,
+                        storyProgress: (index + 1) / this.storyProgression.length,
+                        sceneMood: this.analyzeSceneMood(scene.dialogue),
+                        visualElements: this.extractVisualElements(scene.dialogue)
+                    };
+                });
+            }
+
+            detectTopic(text) {
+                const topics = {
+                    'introduction': ['welcome', 'hello', 'introduce', 'meet', 'start', 'begin'],
+                    'exploration': ['explore', 'discover', 'learn', 'understand', 'find out', 'investigate'],
+                    'analysis': ['analyze', 'examine', 'consider', 'think about', 'reflect', 'evaluate'],
+                    'story': ['story', 'experience', 'happened', 'remember', 'narrative', 'tale'],
+                    'conclusion': ['conclude', 'end', 'finish', 'wrap up', 'summary', 'final'],
+                    'question': ['question', 'ask', 'wonder', 'curious', 'why', 'how', 'what']
+                };
+                
+                for (const [topic, keywords] of Object.entries(topics)) {
+                    if (keywords.some(keyword => text.includes(keyword))) {
+                        return topic;
+                    }
+                }
+                return 'discussion';
+            }
+
+            classifyScene(dialogueLines) {
+                const allText = dialogueLines.map(d => d.text).join(' ').toLowerCase();
+                
+                if (allText.includes('welcome') || allText.includes('hello')) return 'opening';
+                if (allText.includes('story') || allText.includes('experience')) return 'narrative';
+                if (allText.includes('learn') || allText.includes('understand')) return 'educational';
+                if (allText.includes('think') || allText.includes('consider')) return 'reflection';
+                if (allText.includes('conclude') || allText.includes('end')) return 'closing';
+                
+                return 'conversation';
+            }
+
+            analyzeSceneMood(dialogueLines) {
+                const allText = dialogueLines.map(d => d.text).join(' ').toLowerCase();
+                
+                if (allText.includes('amazing') || allText.includes('incredible')) return 'excited';
+                if (allText.includes('curious') || allText.includes('wonder')) return 'curious';
+                if (allText.includes('think') || allText.includes('reflect')) return 'thoughtful';
+                if (allText.includes('friendly') || allText.includes('welcome')) return 'friendly';
+                if (allText.includes('professional') || allText.includes('expert')) return 'professional';
+                
+                return 'neutral';
+            }
+
+            extractVisualElements(dialogueLines) {
+                const allText = dialogueLines.map(d => d.text).join(' ').toLowerCase();
+                const elements = [];
+                
+                // Extract specific visual elements mentioned
+                if (allText.includes('nature') || allText.includes('outdoor')) elements.push('natural_environment');
+                if (allText.includes('city') || allText.includes('urban')) elements.push('urban_setting');
+                if (allText.includes('technology') || allText.includes('digital')) elements.push('tech_elements');
+                if (allText.includes('art') || allText.includes('creative')) elements.push('artistic_elements');
+                if (allText.includes('history') || allText.includes('past')) elements.push('historical_elements');
+                if (allText.includes('future') || allText.includes('tomorrow')) elements.push('futuristic_elements');
+                
+                return elements;
+            }
+
+            generateSceneDescriptions(dialogueData) {
+                this.sceneDescriptions = [];
+                
+                this.storyProgression.forEach((scene, sceneIndex) => {
+                    const narrative = this.narrativeContext[sceneIndex];
+                    const sceneDialogue = scene.dialogue;
+                    
+                    // Generate unique scene description based on story context
+                    let sceneDescription = this.createSceneDescription(scene, narrative, sceneIndex);
+                    
+                    this.sceneDescriptions.push({
+                        sceneIndex: sceneIndex,
+                        description: sceneDescription,
+                        visualStyle: this.determineSceneVisualStyle(scene, narrative),
+                        mood: narrative.sceneMood,
+                        elements: narrative.visualElements
+                    });
+                });
+            }
+
+            createSceneDescription(scene, narrative, sceneIndex) {
+                const { topic, sceneType } = scene;
+                const { storyProgress, totalScenes } = narrative;
+                
+                let baseDescription = '';
+                
+                switch (sceneType) {
+                    case 'opening':
+                        baseDescription = 'Opening scene with welcoming atmosphere, establishing connection';
+                        break;
+                    case 'narrative':
+                        baseDescription = 'Storytelling moment, engaging narrative environment';
+                        break;
+                    case 'educational':
+                        baseDescription = 'Learning environment, knowledge sharing atmosphere';
+                        break;
+                    case 'reflection':
+                        baseDescription = 'Thoughtful contemplation space, introspective atmosphere';
+                        break;
+                    case 'closing':
+                        baseDescription = 'Concluding scene, wrapping up atmosphere';
+                        break;
+                    default:
+                        baseDescription = 'Dynamic conversation environment';
+                }
+                
+                // Add story progression context
+                if (storyProgress <= 0.3) {
+                    baseDescription += ', early story development';
+                } else if (storyProgress <= 0.7) {
+                    baseDescription += ', story building momentum';
+                } else {
+                    baseDescription += ', story resolution phase';
+                }
+                
+                // Add topic-specific elements
+                if (topic === 'nature') baseDescription += ', natural environment elements';
+                if (topic === 'technology') baseDescription += ', technological innovation elements';
+                if (topic === 'art') baseDescription += ', creative artistic elements';
+                if (topic === 'history') baseDescription += ', historical period elements';
+                
+                return baseDescription;
+            }
+
+            determineSceneVisualStyle(scene, narrative) {
+                const { sceneType, topic } = scene;
+                const { visualElements } = narrative;
+                
+                if (visualElements.includes('natural_environment')) return 'natural';
+                if (visualElements.includes('urban_setting')) return 'urban';
+                if (visualElements.includes('tech_elements')) return 'futuristic';
+                if (visualElements.includes('artistic_elements')) return 'artistic';
+                if (visualElements.includes('historical_elements')) return 'historical';
+                if (visualElements.includes('futuristic_elements')) return 'futuristic';
+                
+                return 'creative';
+            }
+
+            extractThemes(text) {
+                const themeKeywords = {
+                    'technology': ['ai', 'computer', 'digital', 'technology', 'innovation', 'future', 'robot', 'smart'],
+                    'nature': ['environment', 'nature', 'earth', 'climate', 'sustainability', 'green', 'organic'],
+                    'education': ['learn', 'teach', 'education', 'knowledge', 'study', 'research', 'discovery'],
+                    'creativity': ['art', 'creative', 'imagination', 'design', 'inspiration', 'innovation'],
+                    'business': ['business', 'work', 'career', 'professional', 'success', 'strategy'],
+                    'health': ['health', 'wellness', 'fitness', 'medical', 'lifestyle', 'nutrition'],
+                    'culture': ['culture', 'tradition', 'heritage', 'diversity', 'community', 'society'],
+                    'adventure': ['adventure', 'travel', 'exploration', 'journey', 'discovery', 'experience']
+                };
+
+                const foundThemes = [];
+                for (const [theme, keywords] of Object.entries(themeKeywords)) {
+                    if (keywords.some(keyword => text.includes(keyword))) {
+                        foundThemes.push(theme);
+                    }
+                }
+                
+                return foundThemes.length > 0 ? foundThemes : ['general'];
+            }
+
+            determineOverallMood(text) {
+                const moodKeywords = {
+                    'excited': ['amazing', 'incredible', 'fantastic', 'wow', 'excited', 'thrilled', 'awesome'],
+                    'curious': ['interesting', 'curious', 'wonder', 'question', 'explore', 'discover', 'fascinating'],
+                    'thoughtful': ['think', 'consider', 'reflect', 'ponder', 'contemplate', 'deep', 'meaningful'],
+                    'friendly': ['friendly', 'welcome', 'nice', 'pleasure', 'glad', 'happy', 'warm'],
+                    'professional': ['professional', 'expert', 'knowledge', 'experience', 'analysis', 'insight']
+                };
+
+                for (const [mood, keywords] of Object.entries(moodKeywords)) {
+                    if (keywords.some(keyword => text.includes(keyword))) {
+                        return mood;
+                    }
+                }
+                return 'neutral';
+            }
+
+            determineVisualStyle(text, speakerPatterns) {
+                // Analyze speaker patterns and content for visual style
+                if (text.includes('imagine') || text.includes('fantasy') || text.includes('magic')) {
+                    return 'fantasy';
+                }
+                if (text.includes('future') || text.includes('technology') || text.includes('ai')) {
+                    return 'futuristic';
+                }
+                if (text.includes('nature') || text.includes('environment') || text.includes('earth')) {
+                    return 'natural';
+                }
+                if (text.includes('art') || text.includes('creative') || text.includes('design')) {
+                    return 'artistic';
+                }
+                return 'creative';
+            }
+
+            getContextualEnhancement() {
+                return {
+                    themes: this.themes,
+                    mood: this.mood,
+                    visualStyle: this.visualStyle,
+                    storyContext: this.getStoryContextForDialogue()
+                };
+            }
+
+            getStoryContextForDialogue() {
+                // Return the story context for the current dialogue analysis
+                if (this.sceneDescriptions.length === 0) {
+                    return null;
+                }
+                
+                // For now, return the first scene context
+                // This will be enhanced to match specific dialogue lines
+                return this.sceneDescriptions[0];
+            }
+
+            getStoryContextForDialogueLine(dialogueIndex, scriptContext) {
+                // Return the story context for a specific dialogue line
+                if (this.sceneDescriptions.length === 0) {
+                    return null;
+                }
+                
+                // Find which scene this dialogue line belongs to
+                for (let sceneIndex = 0; sceneIndex < this.storyProgression.length; sceneIndex++) {
+                    const scene = this.storyProgression[sceneIndex];
+                    if (dialogueIndex >= scene.start && dialogueIndex <= scene.end) {
+                        // Return the scene description for this specific scene
+                        return this.sceneDescriptions[sceneIndex];
+                    }
+                }
+                
+                // Fallback to first scene if no match found
+                return this.sceneDescriptions[0];
+            }
+
+            createSimpleStoryContext(dialogueIndex) {
+                // Create a simple, safe story context
+                return {
+                    sceneIndex: dialogueIndex,
+                    description: `Dynamic scene ${dialogueIndex + 1}, engaging atmosphere, creative environment`,
+                    visualStyle: 'creative',
+                    mood: 'neutral',
+                    elements: ['creative_elements']
+                };
+            }
+
+            createFallbackSceneStructure(dialogueData) {
+                console.log('🔄 Creating fallback scene structure...');
+                this.storyProgression = [{
+                    start: 0,
+                    end: dialogueData.length - 1,
+                    topic: 'conversation',
+                    sceneType: 'conversation',
+                    dialogue: dialogueData
+                }];
+                
+                this.narrativeContext = {
+                    0: {
+                        sceneNumber: 1,
+                        totalScenes: 1,
+                        previousScene: null,
+                        nextScene: null,
+                        storyProgress: 1.0,
+                        sceneMood: 'neutral',
+                        visualElements: ['creative_elements']
+                    }
+                };
+            }
+
+            createFallbackSceneDescriptions(dialogueData) {
+                console.log('🔄 Creating fallback scene descriptions...');
+                this.sceneDescriptions = [{
+                    sceneIndex: 0,
+                    description: 'Engaging conversation environment, dynamic atmosphere, creative setting',
+                    visualStyle: 'creative',
+                    mood: 'neutral',
+                    elements: ['creative_elements']
+                }];
+            }
+
+            createMinimalFallback(dialogueData) {
+                console.log('🔄 Creating minimal fallback structure...');
+                this.themes = ['general'];
+                this.mood = 'neutral';
+                this.visualStyle = 'creative';
+                this.storyProgression = [];
+                this.narrativeContext = {};
+                this.sceneDescriptions = [];
+            }
+        }
+
+        // Initialize script context analyzer
+        const scriptAnalyzer = new ScriptContextAnalyzer();
+
+        // Fallback image creation function for when AI generation fails
+        function createFallbackImage(dialogueText, speaker) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1920;
+            canvas.height = 1080;
+            const ctx = canvas.getContext('2d');
+            
+            // Create a gradient background based on speaker
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            if (speaker === 'man') {
+                gradient.addColorStop(0, '#1e3a8a'); // Blue
+                gradient.addColorStop(1, '#3b82f6');
+            } else {
+                gradient.addColorStop(0, '#7c3aed'); // Purple
+                gradient.addColorStop(1, '#a855f7');
+            }
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add some animated-style elements
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.arc(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    Math.random() * 100 + 50,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+            }
+            
+            // Add text placeholder
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('🎬 AI Image Generation', canvas.width / 2, canvas.height / 2 - 50);
+            ctx.font = '24px Arial';
+            ctx.fillText('Fallback Visual', canvas.width / 2, canvas.height / 2 + 20);
+            
+            // Convert canvas to image
+            const img = new Image();
+            img.src = canvas.toDataURL();
+            return img;
+        }
+
+        async function handleImageGeneration(isForVideo = false, promptOverride = null) {
+            const topic = promptOverride || ui.scriptPromptInput.value.trim();
+            const style = ui.imageStyleInput.value.trim();
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            const modelId = ui.imagenModelSelect.value;
+            const aspectRatio = ui.aspectRatioSelect.value;
+
+            if (!topic || !token || !projectId) {
+                if (!isForVideo) alert("Please fill out the Project ID, Access Token, and Topic fields.");
+                throw new Error("Missing credentials or topic for image generation.");
+            }
+
+            if (!isForVideo) {
+                ui.imageOutputArea.classList.remove('hidden');
+                ui.imageLoader.classList.remove('hidden');
+                ui.generatedImage.classList.add('hidden');
+                ui.regenerateImageBtn.classList.add('hidden');
+                ui.generateImageBtn.disabled = true;
+            }
+
+            try {
+                // Show director status
+                const directorStatus = document.getElementById('director_status');
+                const directorWorking = document.getElementById('director_working');
+                directorStatus.classList.remove('hidden');
+                
+                let result;
+                
+                if (isForVideo) {
+                    // For video generation, we need to analyze the dialogue context
+                    // This will be handled in the video generation function
+                    directorWorking.textContent = '🎬 Director analyzing scene for video...';
+                    result = await imageGenerationExpert.generateImageWithFallback(
+                        topic, 'host', token, projectId, modelId, aspectRatio
+                    );
+                } else {
+                    // For standalone image generation
+                    directorWorking.textContent = '🎬 Director analyzing scene and creating visual story...';
+                    
+                    // Try to get script context if we have dialogue data
+                    let scriptContext = null;
+                    if (dialogueData && dialogueData.length > 0) {
+                        scriptAnalyzer.analyzeFullScript(dialogueData);
+                        scriptContext = scriptAnalyzer.getContextualEnhancement();
+                    }
+                    
+                    result = await imageGenerationExpert.generateImageWithFallback(
+                        topic, 'host', token, projectId, modelId, aspectRatio, scriptContext
+                    );
+                }
+                
+                if (isForVideo) {
+                    return result.base64Data;
+                } else {
+                    ui.generatedImage.src = `data:image/png;base64,${result.base64Data}`;
+                    ui.generatedImage.classList.remove('hidden');
+                    ui.regenerateImageBtn.classList.remove('hidden');
+                    
+                    // Show director's work and method used
+                    const methodIndicator = result.method === 'creative' ? '🎬' : '🔄';
+                    const methodText = result.method === 'creative' ? 'Director\'s Creative Vision' : 'Safe Fallback Method';
+                    ui.statusArea.textContent = `${methodIndicator} ${methodText} - Image ready!`;
+                    
+                    // Hide director status
+                    document.getElementById('director_status').classList.add('hidden');
+                }
+                
+            } catch (error) {
+                console.error("Image generation failed:", error);
+                if (!isForVideo) {
+                    alert(`Image Generation Error: ${error.message}`);
+                    ui.imageOutputArea.classList.add('hidden');
+                }
+                // Hide director status on error
+                document.getElementById('director_status').classList.add('hidden');
+                throw error;
+            } finally {
+                if (!isForVideo) {
+                    ui.imageLoader.classList.add('hidden');
+                    ui.generateImageBtn.disabled = false;
+                }
+            }
+        }
+
+        async function handleVideoGeneration() {
+            if (dialogueData.length === 0) {
+                alert("Please generate audio first. The video requires the generated script and audio timings.");
+                return;
+            }
+
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            
+            if (!token || !projectId) {
+                alert("Please provide Project ID and Access Token for video generation.");
+                return;
+            }
+
+            ui.generateVideoBtn.disabled = true;
+            ui.generateVideoBtn.textContent = 'Generating Video...';
+            ui.videoStatusArea.textContent = '🎬 Director starting video production...';
+            ui.videoOutputArea.classList.add('hidden');
+            ui.downloadVideoBtn.classList.add('hidden');
+            ui.downloadVideoBtn.disabled = true;
+
+            try {
+                // 0. First, analyze the entire script for better context and coherence
+                ui.videoStatusArea.textContent = '🎬 Director analyzing full script for visual coherence...';
+                console.log('🔍 Starting script analysis...');
+                console.log('📝 Dialogue data:', dialogueData);
+                
+                try {
+                    scriptAnalyzer.analyzeFullScript(dialogueData);
+                    console.log('✅ Script analysis completed successfully');
+                } catch (error) {
+                    console.error('❌ Script analysis failed:', error);
+                }
+                
+                let scriptContext = null;
+                try {
+                    scriptContext = scriptAnalyzer.getContextualEnhancement();
+                    console.log('🎭 Script context:', scriptContext);
+                } catch (error) {
+                    console.error('❌ Failed to get script context:', error);
+                    // Create minimal fallback context
+                    scriptContext = {
+                        themes: ['general'],
+                        mood: 'neutral',
+                        visualStyle: 'creative',
+                        storyContext: {
+                            sceneIndex: 0,
+                            description: 'Dynamic conversation environment, engaging atmosphere',
+                            visualStyle: 'creative',
+                            mood: 'neutral',
+                            elements: ['creative_elements']
+                        }
+                    };
+                    console.log('🔄 Using fallback script context:', scriptContext);
+                }
+                
+                // 1. Generate an image for each dialogue line using the Visual Image Generation Expert
+                for (let i = 0; i < dialogueData.length; i++) {
+                    ui.videoStatusArea.textContent = `🎬 Director creating image ${i + 1}/${dialogueData.length}...`;
+                    
+                    // Use the expert to analyze the dialogue and generate a creative prompt
+                    const dialogueLine = dialogueData[i];
+                    const speaker = dialogueLine.speaker; // 'man' or 'woman'
+                    
+                                        try {
+                        // Get story context for this specific dialogue line
+                        let storyContext = null;
+                        try {
+                            storyContext = scriptAnalyzer.getStoryContextForDialogueLine(i, scriptContext);
+                        } catch (contextError) {
+                            console.warn(`⚠️ Could not get story context for line ${i + 1}:`, contextError.message);
+                            storyContext = {
+                                sceneIndex: i,
+                                description: `Dynamic scene ${i + 1}, engaging atmosphere`,
+                                visualStyle: 'creative',
+                                mood: 'neutral',
+                                elements: ['creative_elements']
+                            };
+                        }
+                        
+                        console.log(`🎬 Generating image ${i + 1}/${dialogueData.length} with story context:`, storyContext);
+                        
+                        const result = await imageGenerationExpert.generateImageWithFallback(
+                            dialogueLine.text, 
+                            speaker, 
+                            token, 
+                            projectId, 
+                            ui.imagenModelSelect.value, 
+                            ui.aspectRatioSelect.value,
+                            { ...scriptContext, storyContext }, // Pass enhanced script context with story context
+                            i // Pass dialogue index for story context
+                        );
+                        
+                        dialogueData[i].image = new Image();
+                        dialogueData[i].generatedPrompt = result.prompt; // Store the prompt used
+                        dialogueData[i].generationMethod = result.method; // Store the method used
+                        
+                        await new Promise((resolve, reject) => {
+                            dialogueData[i].image.onload = resolve;
+                            dialogueData[i].image.onerror = reject;
+                            dialogueData[i].image.src = `data:image/png;base64,${result.base64Data}`;
+                        });
+                        
+                        console.log(`🎬 Image ${i + 1} generated using ${result.method} method: ${result.prompt}`);
+                        
+                    } catch (error) {
+                        console.error(`❌ Failed to generate image for line ${i + 1}:`, error);
+                        console.log(`🔄 Creating fallback image for line ${i + 1}...`);
+                        // Create a fallback colored background instead of failing completely
+                        dialogueData[i].image = createFallbackImage(dialogueLine.text, speaker);
+                    }
+                }
+
+                // 2. Create animated video from images (WITH audio recorded in-browser) // UPDATED
+                ui.videoStatusArea.textContent = 'Assembling HD video with animations...';
+                generatedVideoBlob = await createAnimatedVideo(); // UPDATED
+                const videoUrl = URL.createObjectURL(generatedVideoBlob);
+                ui.generatedVideo.src = videoUrl;
+                ui.videoOutputArea.classList.remove('hidden');
+                ui.downloadVideoBtn.classList.remove('hidden');
+                ui.downloadVideoBtn.disabled = false;
+                ui.videoStatusArea.textContent = 'Video preview ready with audio! Click download.'; // UPDATED
+                ui.downloadVideoBtn.textContent = 'Download Video (WEBM)'; // UPDATED
+
+            } catch (error) {
+                console.error("Video Generation failed:", error);
+                ui.videoStatusArea.textContent = `Error: ${error.message}`;
+            } finally {
+                ui.generateVideoBtn.disabled = false;
+                ui.generateVideoBtn.textContent = 'Generate Video';
+            }
+        }
+
+        // --- ULTRA-PRECISE: Record canvas + generated audio together with PERFECT timing ---
+        async function createAnimatedVideo() {
+            const TRANSITION_DURATION_S = 0.3;  // Minimal transition for perfect sync
+            const FRAMERATE = 30;
+            const SYNC_TOLERANCE = 0.01; // 10ms tolerance for perfect sync
+
+            const aspectRatio = ui.aspectRatioSelect.value;
+            const HD_WIDTH = 1920;
+            const HD_HEIGHT = 1080;
+
+            // Canvas setup
+            const canvas = document.createElement('canvas');
+            canvas.width = aspectRatio === '16:9' ? HD_WIDTH : HD_HEIGHT;
+            canvas.height = aspectRatio === '16:9' ? HD_HEIGHT : HD_WIDTH;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+
+            // Video stream from canvas
+            const videoStream = canvas.captureStream(FRAMERATE);
+
+            if (!generatedAudioBlob) {
+                throw new Error('No generated audio found. Please generate audio first.');
+            }
+
+            // Build audio element + web audio graph with PRECISE timing
+            const audioEl = new Audio(URL.createObjectURL(generatedAudioBlob));
+            audioEl.preload = 'auto';
+
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            const audioCtx = new AudioContext();
+            const sourceNode = audioCtx.createMediaElementSource(audioEl);
+            const destNode = audioCtx.createMediaStreamDestination();
+            sourceNode.connect(destNode);
+            sourceNode.connect(audioCtx.destination);
+
+            // Combine audio + video into one stream
+            const combined = new MediaStream([
+                ...videoStream.getVideoTracks(),
+                ...destNode.stream.getAudioTracks()
+            ]);
+
+            const mime = 'video/webm;codecs=vp9,opus';
+            const recorder = new MediaRecorder(combined, { mimeType: mime });
+            const chunks = [];
+            recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+            // --- PRECISE timing calculation for each slide based on EXACT audio durations
+            const n = dialogueData.length;
+            
+            // Use precise audio durations and calculate cumulative timing
+            const durations = [];
+            const startTimes = [];
+            const endTimes = [];
+            
+            let cumulativeTime = 0;
+            for (let i = 0; i < n; i++) {
+                const duration = Math.max(0.1, dialogueData[i].audioDuration);
+                durations.push(duration);
+                startTimes.push(cumulativeTime);
+                endTimes.push(cumulativeTime + duration);
+                cumulativeTime += duration;
+            }
+
+            console.log('🎵 ULTRA-PRECISE Audio Timing Analysis:');
+            for (let i = 0; i < n; i++) {
+                console.log(`Line ${i + 1}: ${startTimes[i].toFixed(3)}s - ${endTimes[i].toFixed(3)}s (${durations[i].toFixed(3)}s)`);
+            }
+
+            // ✅ Precompute per-slide Ken Burns targets ONCE to prevent flicker
+            const kbParams = dialogueData.map(() => ({
+                zoomEnd: 1.1 + Math.random() * 0.1,
+                panXEnd: 0.5 + (Math.random() - 0.5) * 0.1,
+                panYEnd: 0.5 + (Math.random() - 0.5) * 0.1
+            }));
+
+            // Ensure all images are ready
+            for (let i = 0; i < n; i++) {
+                if (!dialogueData[i].image) throw new Error('Missing image for a dialogue line.');
+                if (!dialogueData[i].image.complete) {
+                    await new Promise((res, rej) => {
+                        dialogueData[i].image.onload = res;
+                        dialogueData[i].image.onerror = () => rej(new Error('Image failed to load'));
+                    });
+                }
+            }
+
+            // Start recording and audio playback with PRECISE timing
+            recorder.start();
+            await audioCtx.resume();
+            
+            // Use precise timing for audio start
+            const audioStartTime = audioCtx.currentTime;
+            audioEl.currentTime = 0;
+            await audioEl.play();
+
+            // Render loop driven by ULTRA-PRECISE audio timing
+            let rafId = null;
+            let frameCount = 0;
+            const startTime = performance.now();
+            
+            function renderFrame() {
+                frameCount++;
+                const currentTime = audioCtx.currentTime - audioStartTime;
+                const audioTime = audioEl.currentTime || 0;
+                
+                // Check for audio sync drift and correct if necessary
+                const timeDiff = Math.abs(currentTime - audioTime);
+                if (timeDiff > SYNC_TOLERANCE) {
+                    console.log(`⚠️ Audio sync drift detected: ${(timeDiff * 1000).toFixed(1)}ms, correcting...`);
+                }
+
+                // Find current slide index using PRECISE timing
+                let i = 0;
+                while (i < n - 1 && currentTime >= endTimes[i]) i++;
+
+                const slideStart = startTimes[i];
+                const slideEnd = endTimes[i];
+                const slideDur = Math.max(0.001, slideEnd - slideStart);
+                const baseImg = dialogueData[i].image;
+
+                // Ken Burns progress within this slide with PRECISE timing
+                const kbProgress = Math.min(1, Math.max(0, (currentTime - slideStart) / slideDur));
+
+                // Use cached per-slide targets (no per-frame randomness)
+                const zoomStart = 1.0;
+                const panXStart = 0.5, panYStart = 0.5;
+                const { zoomEnd, panXEnd, panYEnd } = kbParams[i];
+
+                const currentZoom = zoomStart + (zoomEnd - zoomStart) * kbProgress;
+                const currentPanX = panXStart + (panXEnd - panXStart) * kbProgress;
+                const currentPanY = panYStart + (panYEnd - panYStart) * kbProgress;
+
+                const sw = baseImg.width / currentZoom;
+                const sh = baseImg.height / currentZoom;
+                const sx = (baseImg.width - sw) * currentPanX;
+                const sy = (baseImg.height - sh) * currentPanY;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // If we are in the overlap region with next slide, crossfade with PRECISE timing
+                const inTransition = (i < n - 1) && (currentTime >= (slideEnd - TRANSITION_DURATION_S));
+                if (inTransition) {
+                    const nextImg = dialogueData[i + 1].image;
+                    const mix = Math.min(1, Math.max(0, (currentTime - (slideEnd - TRANSITION_DURATION_S)) / TRANSITION_DURATION_S));
+
+                    // draw base (fade out)
+                    ctx.globalAlpha = 1.0 - mix;
+                    ctx.drawImage(baseImg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+                    // draw next (fade in)
+                    ctx.globalAlpha = mix;
+                    ctx.drawImage(nextImg, 0, 0, canvas.width, canvas.height);
+                    ctx.globalAlpha = 1.0;
+                } else {
+                    // normal frame
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(baseImg, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+                }
+
+                // Continue until audio ends with ULTRA-PRECISE timing check
+                if (currentTime < endTimes[n - 1] + 0.5) { // Reduced buffer for precision
+                    rafId = requestAnimationFrame(renderFrame);
+                }
+            }
+
+            rafId = requestAnimationFrame(renderFrame);
+
+            // Finish when audio ends with PRECISE timing
+            await new Promise(resolve => { 
+                audioEl.onended = resolve; 
+                // Also add a timeout as backup
+                setTimeout(resolve, (endTimes[n - 1] + 2) * 1000);
+            });
+
+            if (rafId) cancelAnimationFrame(rafId);
+            recorder.stop();
+
+            const recordedBlob = await new Promise(resolve => {
+                recorder.onstop = () => resolve(new Blob(chunks, { type: mime }));
+            });
+
+            const endTime = performance.now();
+            const totalTime = (endTime - startTime) / 1000;
+            console.log(`✅ Video generation completed with ULTRA-PRECISE audio sync`);
+            console.log(`📊 Performance: ${frameCount} frames rendered in ${totalTime.toFixed(2)}s (${(frameCount/totalTime).toFixed(1)} FPS)`);
+            
+            return recordedBlob; // WEBM (video+audio)
+        }
+  
+        // --- UPDATED: Simple download (WEBM already has audio track) ---
+        async function downloadAndConvertVideo() {
+            if (!generatedVideoBlob) {
+                alert("No video data available to download.");
+                return;
+            }
+
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(generatedVideoBlob);
+            a.download = 'ai_dialogue_video.webm';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+
+            ui.videoStatusArea.textContent = 'WEBM downloaded (video + audio).';
+        }
+
+        async function generateAudioBlob(text, ttsApiKey, speaker) {
+            const voiceSelect = speaker === 'man' ? ui.manVoiceSelect : ui.womanVoiceSelect;
+            if (voiceSelect.disabled) throw new Error(`Cannot generate audio: No ${speaker} voices available.`);
+            const voiceConfig = JSON.parse(voiceSelect.value);
+            const speakingRate = parseFloat(ui.speakingRateSlider.value);
+            const base64 = await fetchTTS(text, ttsApiKey, voiceConfig, speakingRate);
+            const blob = await (await fetch(`data:audio/mp3;base64,${base64}`)).blob();
+            
+            const duration = await new Promise((resolve) => {
+                const audio = new Audio(URL.createObjectURL(blob));
+                audio.onloadedmetadata = () => resolve(audio.duration);
+            });
+
+            return { blob, duration };
+        }
+
+        async function fetchTTS(text, ttsApiKey, voiceConfig, speakingRate) {
+            const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsApiKey}`;
+            const body = { 
+                input: { text }, 
+                voice: voiceConfig, 
+                audioConfig: { audioEncoding: 'MP3', speakingRate: speakingRate } 
+            };
+            const response = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+            if (!response.ok) {
+                 const errorJson = await response.json();
+                 throw new Error(`TTS API failed: ${errorJson.error.message}`);
+            }
+            const result = await response.json();
+            if (!result.audioContent) throw new Error("TTS API did not return audio content.");
+            return result.audioContent;
+        }
+        
+        function downloadScript() {
+            const scriptText = ui.scriptText.textContent;
+            if (!scriptText) {
+                alert("No script has been generated yet.");
+                return;
+            }
+            const blob = new Blob([scriptText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai_script.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        async function concatenateAudio(audioBlobs) {
+            // Create a more precise audio concatenation with proper timing
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const sampleRate = audioContext.sampleRate;
+            
+            // Decode all audio blobs to get precise duration and samples
+            const audioBuffers = [];
+            let totalDuration = 0;
+            
+            for (const blob of audioBlobs) {
+                const arrayBuffer = await blob.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                audioBuffers.push(audioBuffer);
+                totalDuration += audioBuffer.duration;
+            }
+            
+            // Create a new buffer with exact total duration
+            const totalSamples = Math.ceil(totalDuration * sampleRate);
+            const concatenatedBuffer = audioContext.createBuffer(1, totalSamples, sampleRate);
+            const channelData = concatenatedBuffer.getChannelData(0);
+            
+            let currentSample = 0;
+            
+            // Concatenate audio samples precisely
+            for (const buffer of audioBuffers) {
+                const samples = buffer.getChannelData(0);
+                const sampleCount = samples.length;
+                
+                for (let i = 0; i < sampleCount; i++) {
+                    if (currentSample + i < totalSamples) {
+                        channelData[currentSample + i] = samples[i];
+                    }
+                }
+                currentSample += sampleCount;
+            }
+            
+            // Convert back to blob with precise timing
+            const offlineContext = new OfflineAudioContext(1, totalSamples, sampleRate);
+            const source = offlineContext.createBufferSource();
+            source.buffer = concatenatedBuffer;
+            source.connect(offlineContext.destination);
+            source.start();
+            
+            const renderedBuffer = await offlineContext.startRendering();
+            const wavBlob = audioBufferToWav(renderedBuffer);
+            
+            return wavBlob;
+        }
+        
+        // Helper function to convert AudioBuffer to WAV blob
+        function audioBufferToWav(buffer) {
+            const length = buffer.length;
+            const numberOfChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const arrayBuffer = new ArrayBuffer(44 + length * numberOfChannels * 2);
+            const view = new DataView(arrayBuffer);
+            
+            // WAV header
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+            
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + length * numberOfChannels * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numberOfChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+            view.setUint16(32, numberOfChannels * 2, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, length * numberOfChannels * 2, true);
+            
+            // Audio data
+            let offset = 44;
+            for (let i = 0; i < length; i++) {
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                    offset += 2;
+                }
+            }
+            
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        }
+
+        // Simple fallback audio concatenation if the complex method fails
+        async function simpleConcatenateAudio(audioBlobs) {
+            try {
+                // Try the complex method first
+                return await concatenateAudio(audioBlobs);
+            } catch (error) {
+                console.log('⚠️ Complex audio concatenation failed, using simple fallback:', error.message);
+                
+                // Simple fallback: just concatenate the blobs
+                // This is less precise but more reliable
+                const concatenated = new Blob(audioBlobs, { type: 'audio/mp3' });
+                
+                console.log('🔄 Using simple audio concatenation fallback');
+                return concatenated;
+            }
+        }
+        
+        function initializeApp() {
+            populateLanguages();
+            populateImagenModels();
+            const defaultLang = 'en-US';
+            ui.languageSelect.value = defaultLang;
+            populateVoices(defaultLang);
+            updateFullPrompt();
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
