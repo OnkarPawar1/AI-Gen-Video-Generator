@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Content AI Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tab-button {
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button.active {
+            border-color: #4f46e5;
+            color: #4f46e5;
+        }
+        .output-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 150px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            color: #334155;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen py-8">
+
+    <div class="w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-8 space-y-8">
+        
+        <!-- Header -->
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 text-center">YouTube Content AI Suite</h1>
+            <p class="text-gray-600 mt-1 text-center">Generate titles, descriptions, keywords, and thumbnails for your videos.</p>
+        </div>
+        
+        <!-- Controls -->
+        <div class="space-y-6">
+            <!-- Core Inputs -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">Credentials & Setup</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="project_id_input" class="block text-sm font-medium text-gray-700">Google Cloud Project ID</label>
+                        <input type="text" id="project_id_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., qwiklabs-gcp-...">
+                    </div>
+                    <div>
+                        <label for="api_key_input" class="block text-sm font-medium text-gray-700">API Key</label>
+                        <input type="text" id="api_key_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Your Google API Key...">
+                    </div>
+                </div>
+                <div>
+                    <label for="token_input" class="block text-sm font-medium text-gray-700">Vertex AI Access Token</label>
+                    <textarea id="token_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Paste your gcloud auth print-access-token here..."></textarea>
+                </div>
+            </div>
+
+             <!-- Shared Topic Input -->
+            <div class="space-y-4 pt-4 border-t">
+                 <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Video Content</h2>
+                 <div>
+                    <label for="video_topic_input" class="block text-sm font-medium text-gray-700">Primary Video Topic or Idea</label>
+                    <textarea id="video_topic_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., A tutorial on how to bake the perfect sourdough bread."></textarea>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button class="tab-button active py-4 px-1 text-center text-sm font-medium" onclick="openTab('title')">Title Generator</button>
+                    <button class="tab-button py-4 px-1 text-center text-sm font-medium" onclick="openTab('description')">Description Generator</button>
+                    <button class="tab-button py-4 px-1 text-center text-sm font-medium" onclick="openTab('keywords')">Keyword Generator</button>
+                    <button class="tab-button py-4 px-1 text-center text-sm font-medium" onclick="openTab('thumbnail')">Thumbnail Generator</button>
+                </nav>
+            </div>
+
+            <!-- Generator Tabs Content -->
+            <div class="pt-4">
+                <!-- Title Generator -->
+                <div id="title_tab" class="tab-content space-y-4">
+                    <div>
+                        <label for="title_full_prompt" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                        <textarea id="title_full_prompt" rows="6" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                    </div>
+                    <button id="generate_title_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Generate Titles</button>
+                    <div id="title_output_area" class="hidden">
+                        <div class="loader mx-auto"></div>
+                        <pre id="title_output_text" class="output-box"></pre>
+                    </div>
+                </div>
+
+                <!-- Description Generator -->
+                <div id="description_tab" class="tab-content hidden space-y-4">
+                    <div>
+                        <label for="description_full_prompt" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                        <textarea id="description_full_prompt" rows="6" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                    </div>
+                    <button id="generate_description_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Generate Description</button>
+                    <div id="description_output_area" class="hidden">
+                        <div class="loader mx-auto"></div>
+                        <pre id="description_output_text" class="output-box"></pre>
+                    </div>
+                </div>
+
+                <!-- Keyword Generator -->
+                <div id="keywords_tab" class="tab-content hidden space-y-4">
+                     <div>
+                        <label for="keywords_full_prompt" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                        <textarea id="keywords_full_prompt" rows="6" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                    </div>
+                    <button id="generate_keywords_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">Generate Keywords</button>
+                    <div id="keywords_output_area" class="hidden">
+                        <div class="loader mx-auto"></div>
+                        <pre id="keywords_output_text" class="output-box"></pre>
+                    </div>
+                </div>
+
+                <!-- Thumbnail Generator -->
+                <div id="thumbnail_tab" class="tab-content hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="imagen_model_select" class="block text-sm font-medium text-gray-700">Imagen Model</label>
+                            <select id="imagen_model_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                        </div>
+                        <div>
+                            <label for="aspect_ratio_select" class="block text-sm font-medium text-gray-700">Aspect Ratio</label>
+                            <select id="aspect_ratio_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option value="16:9" selected>16:9 (Widescreen)</option>
+                                <option value="9:16">9:16 (Portrait)</option>
+                                <option value="1:1">1:1 (Square)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="thumbnail_full_prompt" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                        <textarea id="thumbnail_full_prompt" rows="6" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                    </div>
+                    <button id="generate_thumbnail_btn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-md font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">Generate Thumbnail</button>
+                    <div id="thumbnail_output_area" class="hidden w-full text-center p-4 mt-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div class="loader mx-auto"></div>
+                        <img id="generated_thumbnail" class="hidden max-w-full mx-auto rounded-lg shadow-md" alt="Generated Thumbnail">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const LOCATION = "us-central1";
+        const TEXT_MODEL_ID = "gemini-1.5-flash-001"; 
+
+        const imagenModels = {
+            "Imagen 3.0": { "imagen-3.0-generate-002": "GA 002" },
+            "Imagen 2.0": { "imagegeneration@006": "GA 006" },
+        };
+
+        // --- UI Elements ---
+        const ui = {
+            // Credentials
+            projectIdInput: document.getElementById('project_id_input'),
+            apiKeyInput: document.getElementById('api_key_input'),
+            tokenInput: document.getElementById('token_input'),
+            // Shared
+            videoTopicInput: document.getElementById('video_topic_input'),
+            // Title
+            titleTab: document.getElementById('title_tab'),
+            titleFullPrompt: document.getElementById('title_full_prompt'),
+            generateTitleBtn: document.getElementById('generate_title_btn'),
+            titleOutputArea: document.getElementById('title_output_area'),
+            titleOutputText: document.getElementById('title_output_text'),
+            // Description
+            descriptionTab: document.getElementById('description_tab'),
+            descriptionFullPrompt: document.getElementById('description_full_prompt'),
+            generateDescriptionBtn: document.getElementById('generate_description_btn'),
+            descriptionOutputArea: document.getElementById('description_output_area'),
+            descriptionOutputText: document.getElementById('description_output_text'),
+            // Keywords
+            keywordsTab: document.getElementById('keywords_tab'),
+            keywordsFullPrompt: document.getElementById('keywords_full_prompt'),
+            generateKeywordsBtn: document.getElementById('generate_keywords_btn'),
+            keywordsOutputArea: document.getElementById('keywords_output_area'),
+            keywordsOutputText: document.getElementById('keywords_output_text'),
+            // Thumbnail
+            thumbnailTab: document.getElementById('thumbnail_tab'),
+            imagenModelSelect: document.getElementById('imagen_model_select'),
+            aspectRatioSelect: document.getElementById('aspect_ratio_select'),
+            thumbnailFullPrompt: document.getElementById('thumbnail_full_prompt'),
+            generateThumbnailBtn: document.getElementById('generate_thumbnail_btn'),
+            thumbnailOutputArea: document.getElementById('thumbnail_output_area'),
+            generatedThumbnail: document.getElementById('generated_thumbnail'),
+        };
+
+        // --- Event Listeners ---
+        ui.videoTopicInput.addEventListener('input', updateActiveTabPrompt);
+        ui.generateTitleBtn.addEventListener('click', () => handleTextGeneration('title'));
+        ui.generateDescriptionBtn.addEventListener('click', () => handleTextGeneration('description'));
+        ui.generateKeywordsBtn.addEventListener('click', () => handleTextGeneration('keywords'));
+        ui.generateThumbnailBtn.addEventListener('click', handleThumbnailGeneration);
+
+        // --- Prompt Updaters ---
+        function updateTitlePrompt() {
+            const topic = ui.videoTopicInput.value;
+            const prompt = `You are a YouTube expert specializing in creating viral, clickable titles. Your goal is to maximize click-through rate (CTR).
+
+Generate 5 distinct title options for a video about: "${topic}"
+
+Instructions:
+- Keep titles under 60 characters.
+- Use strong, emotional, or curiosity-driving words.
+- Consider using numbers, questions, or a "how-to" format.
+- Ensure the titles are optimized for YouTube search.
+- Do NOT add any extra text or explanation, just the numbered list of titles.
+
+Example Format:
+1. Title Option 1
+2. Title Option 2
+...`;
+            ui.titleFullPrompt.value = prompt;
+        }
+
+        function updateDescriptionPrompt() {
+            const topic = ui.videoTopicInput.value;
+            const prompt = `You are a YouTube SEO expert. Write a comprehensive, well-structured YouTube description for a video with the title: "${topic}"
+
+Instructions:
+1.  **Hook:** Start with a compelling 1-2 sentence hook that grabs the viewer's attention and includes the main keywords.
+2.  **Summary:** Write a detailed paragraph summarizing the video's content, what viewers will learn, or the story being told.
+3.  **Timestamps:** Add a section for timestamps (if applicable). Provide 3-5 example timestamps based on the likely structure of the video topic.
+4.  **Call to Action (CTA):** Encourage viewers to like, subscribe, and hit the notification bell.
+5.  **Links:** Include placeholders for relevant links (e.g., [Your Website], [Social Media], [Related Video]).
+6.  **Hashtags:** End with 3-5 relevant, niche hashtags.
+7.  **Formatting:** Use paragraphs, spacing, and simple emojis to make the description easy to read.
+
+Your response should ONLY be the description text itself.`;
+            ui.descriptionFullPrompt.value = prompt;
+        }
+
+        function updateKeywordsPrompt() {
+            const topic = ui.videoTopicInput.value;
+            const prompt = `You are a YouTube SEO specialist. Your task is to generate a comprehensive list of keywords and tags for a video about: "${topic}"
+
+Instructions:
+- Generate a list of 20-25 keywords.
+- Include a mix of broad (short-tail) and specific (long-tail) keywords.
+- Think about search intent: what would a user type to find this video?
+- Include keywords related to the topic, the audience, and potential problems the video solves.
+- Your response must ONLY be a single line of comma-separated values.
+
+Example:
+keyword1, keyword2, long tail keyword 3, another keyword, ...`;
+            ui.keywordsFullPrompt.value = prompt;
+        }
+
+        function updateThumbnailPrompt() {
+            const topic = ui.videoTopicInput.value;
+            const prompt = `Create a visually stunning, high-impact YouTube thumbnail for a video titled: "${topic}"
+
+Key elements for a successful thumbnail (incorporate these):
+- **Subject:** A single, clear, and emotionally expressive focal point (a person's face, a key object). The subject should be large and easily recognizable.
+- **Colors:** Use extremely vibrant, high-contrast colors that pop. Bright backgrounds and contrasting subject colors are essential.
+- **Emotion:** Convey a strong emotion (excitement, shock, curiosity, happiness).
+- **Simplicity:** Avoid clutter. The thumbnail must be understandable in a fraction of a second on a small screen.
+- **Style:** Clean, professional, 3D rendered style, cinematic lighting, dramatic shadows, hyper-detailed, 8k.
+- **Composition:** Follow the rule of thirds. Leave some empty space, perhaps for potential text overlays later.
+
+**Do NOT include any text in the image itself.** The prompt should focus only on generating the visual elements.`;
+            ui.thumbnailFullPrompt.value = prompt;
+        }
+
+        function updateActiveTabPrompt() {
+            const activeTab = document.querySelector('.tab-content:not(.hidden)');
+            if (!activeTab) return;
+            switch (activeTab.id) {
+                case 'title_tab': updateTitlePrompt(); break;
+                case 'description_tab': updateDescriptionPrompt(); break;
+                case 'keywords_tab': updateKeywordsPrompt(); break;
+                case 'thumbnail_tab': updateThumbnailPrompt(); break;
+            }
+        }
+        
+        // --- Tab Management ---
+        function openTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${tabName}_tab`).classList.remove('hidden');
+            const button = document.querySelector(`button[onclick="openTab('${tabName}')"]`);
+            if(button) button.classList.add('active');
+            updateActiveTabPrompt();
+        }
+
+        // --- API Call Handlers ---
+        async function handleTextGeneration(type) {
+            const topic = ui.videoTopicInput.value.trim();
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            
+            if (!topic || !token || !projectId) {
+                alert("Please fill out all credential fields and the video topic.");
+                return;
+            }
+
+            const prompt = ui[`${type}FullPrompt`].value;
+            const outputArea = ui[`${type}OutputArea`];
+            const outputText = ui[`${type}OutputText`];
+            const generateBtn = ui[`generate${type.charAt(0).toUpperCase() + type.slice(1)}Btn`];
+            const originalBtnText = generateBtn.textContent;
+
+            outputArea.classList.remove('hidden');
+            outputText.classList.add('hidden');
+            outputArea.querySelector('.loader').classList.remove('hidden');
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+
+            try {
+                const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${TEXT_MODEL_ID}:generateContent`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    throw new Error(`API Error: ${errorJson.error.message}`);
+                }
+                const result = await response.json();
+                const generatedText = result.candidates[0]?.content?.parts[0]?.text || "No content generated.";
+                
+                outputText.textContent = generatedText.trim();
+                outputText.classList.remove('hidden');
+
+            } catch (error) {
+                console.error(`${type} generation failed:`, error);
+                outputText.textContent = `Error: ${error.message}`;
+                outputText.classList.remove('hidden');
+            } finally {
+                outputArea.querySelector('.loader').classList.add('hidden');
+                generateBtn.disabled = false;
+                generateBtn.textContent = originalBtnText;
+            }
+        }
+
+        async function handleThumbnailGeneration() {
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            const modelId = ui.imagenModelSelect.value;
+            const aspectRatio = ui.aspectRatioSelect.value;
+            const prompt = ui.thumbnailFullPrompt.value.trim();
+
+            if (!prompt || !token || !projectId) {
+                alert("Please fill out all credential fields and ensure the prompt is generated.");
+                return;
+            }
+
+            ui.thumbnailOutputArea.classList.remove('hidden');
+            ui.generatedThumbnail.classList.add('hidden');
+            ui.thumbnailOutputArea.querySelector('.loader').classList.remove('hidden');
+            ui.generateThumbnailBtn.disabled = true;
+            ui.generateThumbnailBtn.textContent = 'Generating...';
+
+            try {
+                const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${modelId}:predict`;
+                const payload = {
+                    instances: [{ prompt: prompt }],
+                    parameters: { sampleCount: 1, aspectRatio: aspectRatio }
+                };
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    throw new Error(`Imagen API Error: ${errorJson.error.message}`);
+                }
+                
+                const result = await response.json();
+                const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
+                if (!base64Data) {
+                    throw new Error("Imagen API did not return image content.");
+                }
+                
+                ui.generatedThumbnail.src = `data:image/png;base64,${base64Data}`;
+                ui.generatedThumbnail.classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Thumbnail generation failed:", error);
+                alert(`Thumbnail Generation Error: ${error.message}`);
+            } finally {
+                ui.thumbnailOutputArea.querySelector('.loader').classList.add('hidden');
+                ui.generateThumbnailBtn.disabled = false;
+                ui.generateThumbnailBtn.textContent = 'Generate Thumbnail';
+            }
+        }
+
+        // --- Initialization ---
+        function populateImagenModels() {
+            ui.imagenModelSelect.innerHTML = '';
+            for (const groupName in imagenModels) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = groupName;
+                for (const modelId in imagenModels[groupName]) {
+                    const option = document.createElement('option');
+                    option.value = modelId;
+                    option.textContent = imagenModels[groupName][modelId];
+                    optgroup.appendChild(option);
+                }
+                ui.imagenModelSelect.appendChild(optgroup);
+            }
+        }
+
+        function initializeApp() {
+            populateImagenModels();
+            openTab('title'); // Open the first tab by default
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
