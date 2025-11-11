@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dialogue Video Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4f46e5;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* The canvas and video players are absolutely positioned within the container */
+        canvas, .video_player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures video covers the container */
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen py-8">
+
+    <div class="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        <!-- Left Column: Controls -->
+        <div class="space-y-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">AI Dialogue Video Generator V4</h1>
+                <p class="text-gray-600 mt-1">Create a video conversation using AI, with flexible aspect ratios.</p>
+            </div>
+            
+            <!-- Core Inputs -->
+            <div class="space-y-4">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">Credentials & Setup</h2>
+                    <button id="use_defaults_btn" class="px-3 py-1 text-xs font-medium text-white bg-gray-500 rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">Use Defaults</button>
+                </div>
+                <div>
+                    <label for="project_id_input" class="block text-sm font-medium text-gray-700">Google Cloud Project ID</label>
+                    <input type="text" id="project_id_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., PROJECT_ID-...">
+                </div>
+                 <div>
+                    <label for="tts_api_key_input" class="block text-sm font-medium text-gray-700">Text-to-Speech API Key</label>
+                    <input type="text" id="tts_api_key_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Your Google TTS API Key...">
+                </div>
+                <div>
+                    <label for="token_input" class="block text-sm font-medium text-gray-700">Vertex AI Access Token</label>
+                    <textarea id="token_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Paste your gcloud auth print-access-token here..."></textarea>
+                </div>
+                <div>
+                    <label for="man_video_input" class="block text-sm font-medium text-gray-700">Man's Video (Talking)</label>
+                    <input type="file" id="man_video_input" accept="video/mp4,video/webm" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                </div>
+                <div>
+                    <label for="woman_video_input" class="block text-sm font-medium text-gray-700">Woman's Video (Talking)</label>
+                    <input type="file" id="woman_video_input" accept="video/mp4,video/webm" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"/>
+                </div>
+            </div>
+
+            <!-- Content Inputs -->
+            <div class="space-y-4 pt-4 border-t">
+                 <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Video Content</h2>
+                 <div>
+                    <label for="model_select" class="block text-sm font-medium text-gray-700">AI Model for Script</label>
+                    <select id="model_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                        <optgroup label="Gemini 2.5">
+                            <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                            <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+                            <option value="gemini-2.5-flash-lite-preview-06-17">Gemini 2.5 Flash-Lite (Preview)</option>
+                        </optgroup>
+                        <optgroup label="Gemini 2.0">
+                            <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                            <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
+                        </optgroup>
+                        <optgroup label="Gemini 1.5">
+                            <option value="gemini-1.5-pro-001">Gemini 1.5 Pro</option>
+                            <option value="gemini-1.5-flash-001">Gemini 1.5 Flash</option>
+                        </optgroup>
+                    </select>
+                </div>
+                 <div>
+                    <label for="script_prompt_input" class="block text-sm font-medium text-gray-700">Script Topic</label>
+                    <textarea id="script_prompt_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., A brief, friendly argument about whether pineapple belongs on pizza."></textarea>
+                </div>
+                <div>
+                    <label for="full_prompt_input" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
+                    <textarea id="full_prompt_input" rows="6" class="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"></textarea>
+                </div>
+            </div>
+
+            <!-- Customization Panel -->
+             <div class="space-y-4 pt-4 border-t">
+                <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Customization</h2>
+                 <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="aspect_ratio_select" class="block text-sm font-medium text-gray-700">Aspect Ratio</label>
+                        <select id="aspect_ratio_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="9:16" selected>9:16 (Portrait)</option>
+                            <option value="16:9">16:9 (Landscape)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="speaking_rate_slider" class="block text-sm font-medium text-gray-700">Speaking Speed: <span id="speaking_rate_value">1.0</span>x</label>
+                        <input type="range" id="speaking_rate_slider" min="0.5" max="1.5" value="1.0" step="0.1" class="mt-1 w-full h-10 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                 </div>
+                 <div class="grid grid-cols-1 gap-4">
+                     <div>
+                        <label for="language_select" class="block text-sm font-medium text-gray-700">Voice Language</label>
+                        <select id="language_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                 </div>
+                 <div class="grid grid-cols-2 gap-4">
+                     <div>
+                        <label for="man_voice_select" class="block text-sm font-medium text-gray-700">Man's Voice</label>
+                        <select id="man_voice_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                     <div>
+                        <label for="woman_voice_select" class="block text-sm font-medium text-gray-700">Woman's Voice</label>
+                        <select id="woman_voice_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                     </div>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Output -->
+        <div class="flex flex-col space-y-4">
+            <div id="output_container" class="w-full bg-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden border-2 border-gray-300 aspect-[9/16]">
+                <div id="loader" class="loader hidden"></div>
+                <div id="message_area" class="text-gray-400 px-4 text-center z-10">Upload both videos and enter a prompt to begin.</div>
+                <video id="man_video_player" class="video_player hidden" muted playsinline></video>
+                <video id="woman_video_player" class="video_player hidden" muted playsinline></video>
+                <canvas id="video_canvas" class="hidden"></canvas>
+                <audio id="audio_player" class="hidden" crossOrigin="anonymous"></audio>
+            </div>
+            
+            <div class="space-y-2">
+                <div id="status_area" class="text-center text-sm text-gray-600 h-5"></div>
+                <button id="generate_btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Generate Video
+                </button>
+                <a id="download_link" class="hidden w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                    Download Video
+                </a>
+            </div>
+
+            <!-- Script Display Area -->
+            <div id="script_display_area" class="hidden w-full p-4 mt-2 bg-gray-50 border border-gray-200 rounded-lg">
+                <h3 class="text-md font-semibold text-gray-800 mb-2">Generated Script</h3>
+                <pre id="script_text" class="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white p-3 rounded-md border"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const LOCATION = "us-central1";
+        
+        // --- Corrected Voice Data with proper language prefixes ---
+        const chirpMaleVoices = [
+            { name: "Achird", description: "Male (Achird)" }, { name: "Algenib", description: "Male (Algenib)" },
+            { name: "Algieba", description: "Male (Algieba)" }, { name: "Alnilam", description: "Male (Alnilam)" },
+            { name: "Charon", description: "Male (Charon)" }, { name: "Enceladus", description: "Male (Enceladus)" },
+            { name: "Fenrir", description: "Male (Fenrir)" }, { name: "Iapetus", description: "Male (Iapetus)" },
+            { name: "Orus", description: "Male (Orus)" }, { name: "Puck", description: "Male (Puck)" },
+            { name: "Rasalgethi", description: "Male (Rasalgethi)" }, { name: "Sadachbia", description: "Male (Sadachbia)" },
+            { name: "Sadaltager", description: "Male (Sadaltager)" }, { name: "Schedar", description: "Male (Schedar)" },
+            { name: "Umbriel", description: "Male (Umbriel)" }, { name: "Zubenelgenubi", description: "Male (Zubenelgenubi)" },
+        ];
+        const chirpFemaleVoices = [
+            { name: "Achernar", description: "Female (Achernar)" }, { name: "Aoede", description: "Female (Aoede)" },
+            { name: "Autonoe", description: "Female (Autonoe)" }, { name: "Callirrhoe", description: "Female (Callirrhoe)" },
+            { name: "Despina", description: "Female (Despina)" }, { name: "Erinome", description: "Female (Erinome)" },
+            { name: "Gacrux", description: "Female (Gacrux)" }, { name: "Kore", description: "Female (Kore)" },
+            { name: "Laomedeia", description: "Female (Laomedeia)" }, { name: "Leda", description: "Female (Leda)" },
+            { name: "Pulcherrima", description: "Female (Pulcherrima)" }, { name: "Sulafat", description: "Female (Sulafat)" },
+            { name: "Vindemiatrix", description: "Female (Vindemiatrix)" }, { name: "Zephyr", description: "Female (Zephyr)" },
+        ];
+        
+        const generateChirpVoices = (langPrefix) => ({
+            male: chirpMaleVoices.map(v => ({ name: `${langPrefix}-Chirp3-HD-${v.name}`, description: v.description })),
+            female: chirpFemaleVoices.map(v => ({ name: `${langPrefix}-Chirp3-HD-${v.name}`, description: v.description }))
+        });
+
+        const voicesData = {
+            "en-US": {
+                description: "English (US)",
+                male: [{ name: "en-US-Studio-M", description: "Male (Studio M)" }, ...generateChirpVoices("en-US").male],
+                female: [{ name: "en-US-Studio-O", description: "Female (Studio O)" }, ...generateChirpVoices("en-US").female]
+            },
+            "en-GB": {
+                description: "English (UK)",
+                male: [{ name: "en-GB-Studio-B", description: "Male (Studio B)" }, ...generateChirpVoices("en-GB").male],
+                female: [{ name: "en-GB-Studio-A", description: "Female (Studio A)" }, ...generateChirpVoices("en-GB").female]
+            },
+            "es-ES": {
+                description: "Spanish (Spain)",
+                male: [{ name: "es-ES-Neural2-B", description: "Male (Neural2 B)" }, ...generateChirpVoices("es-ES").male],
+                female: [{ name: "es-ES-Neural2-F", description: "Female (Neural2 F)" }, ...generateChirpVoices("es-ES").female]
+            },
+            "es-US": {
+                description: "Spanish (US)",
+                ...generateChirpVoices("es-US")
+            },
+            "fr-FR": {
+                description: "French (France)",
+                male: [{ name: "fr-FR-Studio-D", description: "Male (Studio D)" }, ...generateChirpVoices("fr-FR").male],
+                female: [{ name: "fr-FR-Studio-A", description: "Female (Studio A)" }, ...generateChirpVoices("fr-FR").female]
+            },
+            "fr-CA": {
+                description: "French (Canada)",
+                ...generateChirpVoices("fr-CA")
+            },
+            "de-DE": {
+                description: "German (Germany)",
+                male: [{ name: "de-DE-Studio-B", description: "Male (Studio B)" }, ...generateChirpVoices("de-DE").male],
+                female: [{ name: "de-DE-Studio-A", description: "Female (Studio A)" }, ...generateChirpVoices("de-DE").female]
+            },
+            "it-IT": {
+                description: "Italian (Italy)",
+                ...generateChirpVoices("it-IT")
+            },
+            "pt-BR": {
+                description: "Portuguese (Brazil)",
+                ...generateChirpVoices("pt-BR")
+            },
+            "ja-JP": {
+                description: "Japanese (Japan)",
+                male: [{ name: "ja-JP-Wavenet-D", description: "Male (Wavenet D)" }, ...generateChirpVoices("ja-JP").male],
+                female: [{ name: "ja-JP-Wavenet-C", description: "Female (Wavenet C)" }, ...generateChirpVoices("ja-JP").female]
+            },
+            "cmn-CN": {
+                description: "Mandarin Chinese",
+                ...generateChirpVoices("cmn-CN")
+            },
+            "hi-IN": {
+                description: "Hindi (India)",
+                male: [{ name: "hi-IN-Wavenet-B", description: "Male (Wavenet B)" }, ...generateChirpVoices("hi-IN").male],
+                female: [{ name: "hi-IN-Wavenet-A", description: "Female (Wavenet A)" }, ...generateChirpVoices("hi-IN").female]
+            },
+            "mr-IN": {
+                description: "Marathi (India)",
+                ...generateChirpVoices("mr-IN")
+            },
+            "ar-XA": {
+                description: "Arabic",
+                male: chirpMaleVoices.map(v => ({ name: `ar-XA-Chirp3-HD-${v.name}`, description: v.description })),
+                female: chirpFemaleVoices.map(v => ({ name: `ar-XA-Chirp3-HD-${v.name}`, description: v.description }))
+            }
+        };
+
+
+        // --- UI Elements ---
+        const ui = {
+            generateBtn: document.getElementById('generate_btn'),
+            useDefaultsBtn: document.getElementById('use_defaults_btn'),
+            tokenInput: document.getElementById('token_input'),
+            projectIdInput: document.getElementById('project_id_input'),
+            ttsApiKeyInput: document.getElementById('tts_api_key_input'),
+            scriptPromptInput: document.getElementById('script_prompt_input'),
+            fullPromptInput: document.getElementById('full_prompt_input'),
+            modelSelect: document.getElementById('model_select'),
+            loader: document.getElementById('loader'),
+            messageArea: document.getElementById('message_area'),
+            canvas: document.getElementById('video_canvas'),
+            audioPlayer: document.getElementById('audio_player'),
+            manVideoPlayer: document.getElementById('man_video_player'),
+            womanVideoPlayer: document.getElementById('woman_video_player'),
+            downloadLink: document.getElementById('download_link'),
+            statusArea: document.getElementById('status_area'),
+            speakingRateSlider: document.getElementById('speaking_rate_slider'),
+            speakingRateValue: document.getElementById('speaking_rate_value'),
+            manVideoInput: document.getElementById('man_video_input'),
+            womanVideoInput: document.getElementById('woman_video_input'),
+            aspectRatioSelect: document.getElementById('aspect_ratio_select'),
+            outputContainer: document.getElementById('output_container'),
+            languageSelect: document.getElementById('language_select'),
+            manVoiceSelect: document.getElementById('man_voice_select'),
+            womanVoiceSelect: document.getElementById('woman_voice_select'),
+            scriptDisplayArea: document.getElementById('script_display_area'),
+            scriptText: document.getElementById('script_text'),
+        };
+
+        // --- Globals ---
+        let mediaRecorder;
+        let recordedChunks = [];
+        let animationFrameId;
+        let backgroundAssets = { man: null, woman: null };
+        let audioContext = null;
+        let audioSource = null;
+        let audioDestination = null;
+        let activeVideo = null; // Holds the currently speaking video element
+        let wakeLock = null; // For Screen Wake Lock API
+        
+        // --- Event Listeners ---
+        ui.generateBtn.addEventListener('click', handleGeneration);
+        ui.useDefaultsBtn.addEventListener('click', fillDefaultCredentials);
+        ui.speakingRateSlider.addEventListener('input', () => ui.speakingRateValue.textContent = parseFloat(ui.speakingRateSlider.value).toFixed(1));
+        ui.manVideoInput.addEventListener('change', () => handleVideoUpload(ui.manVideoInput, ui.manVideoPlayer, 'man'));
+        ui.womanVideoInput.addEventListener('change', () => handleVideoUpload(ui.womanVideoInput, ui.womanVideoPlayer, 'woman'));
+        ui.aspectRatioSelect.addEventListener('change', setupCanvasAndContainer);
+        ui.languageSelect.addEventListener('change', (e) => populateVoices(e.target.value));
+        ui.scriptPromptInput.addEventListener('input', updateFullPrompt);
+
+        // --- Functions ---
+        function fillDefaultCredentials() {
+            // Updated credentials provided by the user. Note: Tokens expire.
+            ui.projectIdInput.value = 'Get_PROJECT_ID';
+            ui.ttsApiKeyInput.value = 'Get_API_KEY';
+            ui.tokenInput.value = 'Get_ACCESS_TOKEN';
+        }
+        
+        function populateLanguages() {
+            ui.languageSelect.innerHTML = '';
+            // Sort languages alphabetically by description for better UX
+            const sortedLangs = Object.keys(voicesData).sort((a, b) => {
+                return voicesData[a].description.localeCompare(voicesData[b].description);
+            });
+
+            sortedLangs.forEach(langCode => {
+                const option = document.createElement('option');
+                option.value = langCode;
+                option.textContent = voicesData[langCode].description;
+                ui.languageSelect.appendChild(option);
+            });
+        }
+
+        function populateVoices(langCode) {
+            const language = voicesData[langCode];
+            if (!language) return;
+            
+            const populateSelect = (selectElement, voices) => {
+                selectElement.innerHTML = '';
+                if (voices && voices.length > 0) {
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ languageCode: langCode, name: voice.name });
+                        option.textContent = voice.description;
+                        selectElement.appendChild(option);
+                    });
+                    selectElement.disabled = false;
+                } else {
+                    const option = document.createElement('option');
+                    option.textContent = "No voices available";
+                    selectElement.appendChild(option);
+                    selectElement.disabled = true;
+                }
+            };
+            
+            populateSelect(ui.manVoiceSelect, language.male);
+            populateSelect(ui.womanVoiceSelect, language.female);
+        }
+
+        function setupCanvasAndContainer() {
+            const ratio = ui.aspectRatioSelect.value;
+            ui.outputContainer.classList.remove('aspect-[9/16]', 'aspect-[16/9]');
+            ui.outputContainer.classList.add(`aspect-[${ratio.replace(':', '/')}]`);
+            
+            if (ratio === '16:9') {
+                ui.canvas.width = 1280;
+                ui.canvas.height = 720;
+            } else { // 9:16
+                ui.canvas.width = 720;
+                ui.canvas.height = 1280;
+            }
+        }
+
+        function handleVideoUpload(inputElement, playerElement, speaker) {
+            if (inputElement.files && inputElement.files[0]) {
+                const fileURL = URL.createObjectURL(inputElement.files[0]);
+                playerElement.src = fileURL;
+                playerElement.load(); // Important: trigger the load process
+                
+                if (!backgroundAssets.man && !backgroundAssets.woman) {
+                    playerElement.classList.remove('hidden');
+                    ui.messageArea.classList.add('hidden');
+                }
+                backgroundAssets[speaker] = playerElement;
+            }
+        }
+        
+        function updateFullPrompt() {
+            const topic = ui.scriptPromptInput.value;
+            const fullPrompt = `Generate a long, conversational script between a man and a woman based on the following topic: "${topic}".
+The script should have between 2 and 6 lines of dialogue in total.
+Each line must start with "Man:" or "Woman:". Do not include anything else before the speaker's name.
+For example:
+Woman: I am an interviewer, Tell me about yourself.
+Man: I am a candidate who is attending an interview for a software engineer. My answers to questions are brief, explanatory, and interesting.
+Woman: OK, my next question is: Why should I hire you?
+
+Your response must only be the script itself.`;
+            ui.fullPromptInput.value = fullPrompt;
+        }
+
+        async function handleScriptGeneration(prompt, token, projectId, modelId) {
+             const url = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${LOCATION}/publishers/google/models/${modelId}:generateContent`;
+             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+             const response = await fetch(url, {
+                 method: 'POST',
+                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                 body: JSON.stringify(payload)
+             });
+             if (!response.ok) {
+                 const errorJson = await response.json();
+                 throw new Error(`AI Script Generation failed: ${errorJson.error.message}`);
+             }
+             const result = await response.json();
+             if (!result.candidates || result.candidates.length === 0) {
+                 throw new Error("AI Script Generation returned no content. The model may be unavailable or the token may be expired.");
+             }
+             return result.candidates[0].content.parts[0].text.trim();
+        }
+
+        async function handleGeneration() {
+            const fullPrompt = ui.fullPromptInput.value.trim();
+            const token = ui.tokenInput.value.trim();
+            const projectId = ui.projectIdInput.value.trim();
+            const ttsApiKey = ui.ttsApiKeyInput.value.trim();
+            const modelId = ui.modelSelect.value;
+
+            if (!fullPrompt || !token || !projectId || !ttsApiKey || !backgroundAssets.man || !backgroundAssets.woman) {
+                alert("Please fill out all fields: Credentials, Videos, Model, and a Script Prompt.");
+                return;
+            }
+            
+            if(animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            ui.manVideoPlayer.pause();
+            ui.womanVideoPlayer.pause();
+            ui.manVideoPlayer.classList.add('hidden');
+            ui.womanVideoPlayer.classList.add('hidden');
+            
+            ui.canvas.classList.add('hidden');
+            ui.messageArea.classList.add('hidden');
+            ui.downloadLink.classList.add('hidden');
+            ui.scriptDisplayArea.classList.add('hidden'); // Hide script area on new generation
+            ui.loader.classList.remove('hidden');
+            ui.generateBtn.disabled = true;
+            ui.generateBtn.textContent = 'Generating...';
+            ui.statusArea.textContent = 'Starting...';
+
+            try {
+                await requestWakeLock();
+                setupCanvasAndContainer();
+                
+                ui.statusArea.textContent = 'Loading video files...';
+                await loadBackgroundAssets();
+                
+                ui.statusArea.textContent = 'Generating AI script...';
+                const script = await handleScriptGeneration(fullPrompt, token, projectId, modelId);
+                
+                ui.scriptText.textContent = script;
+                ui.scriptDisplayArea.classList.remove('hidden');
+
+                const dialogueLines = script.split('\n').filter(line => line.trim() !== '' && (line.startsWith('Man:') || line.startsWith('Woman:'))).map(line => {
+                    const [speaker, ...text] = line.split(':');
+                    const sanitizedText = text.join(':').trim().replace(/[`*]/g, '');
+                    return { speaker: speaker.trim().toLowerCase(), text: sanitizedText, audio: null };
+                });
+
+                if (dialogueLines.length === 0) throw new Error("AI failed to generate a valid script.");
+
+                ui.statusArea.textContent = 'Generating all audio...';
+                for (let line of dialogueLines) {
+                     ui.statusArea.textContent = `Generating audio for "${line.speaker}"...`;
+                     line.audio = await generateAudio(line.text, ttsApiKey, line.speaker);
+                }
+                
+                ui.statusArea.textContent = 'All assets generated. Preparing video...';
+                await recordAndPlaySequence(dialogueLines);
+
+            } catch (error) {
+                console.error("Generation failed:", error);
+                ui.statusArea.textContent = `Error: ${error.message}`;
+                ui.messageArea.textContent = `Error: ${error.message}. Check console for details.`;
+                ui.loader.classList.add('hidden');
+                ui.scriptDisplayArea.classList.add('hidden');
+            } finally {
+                releaseWakeLock();
+                ui.generateBtn.disabled = false;
+                ui.generateBtn.textContent = 'Generate Video';
+            }
+        }
+
+        async function loadBackgroundAssets() {
+            const manVideo = backgroundAssets.man;
+            const womanVideo = backgroundAssets.woman;
+
+            if (!manVideo || !womanVideo) {
+                throw new Error("One or both video elements are missing.");
+            }
+
+            const loadVideo = (video, speakerName) => new Promise((resolve, reject) => {
+                if (video.readyState >= 3) { // HAVE_FUTURE_DATA or more
+                    return resolve();
+                }
+                const canPlayHandler = () => {
+                    cleanup();
+                    resolve();
+                };
+                const errorHandler = (e) => {
+                    cleanup();
+                    reject(new Error(`Failed to load ${speakerName}'s video: ${e.message}`));
+                };
+                const cleanup = () => {
+                    video.removeEventListener('canplaythrough', canPlayHandler);
+                    video.removeEventListener('error', errorHandler);
+                };
+                video.addEventListener('canplaythrough', canPlayHandler);
+                video.addEventListener('error', errorHandler);
+            });
+
+            await Promise.all([loadVideo(manVideo, 'man'), loadVideo(womanVideo, 'woman')]);
+        }
+
+        async function getAudioDuration(audioBlob) {
+            const audioUrl = URL.createObjectURL(audioBlob);
+            return new Promise((resolve, reject) => {
+                const tempAudio = new Audio(audioUrl);
+                tempAudio.addEventListener('loadedmetadata', () => {
+                    URL.revokeObjectURL(audioUrl);
+                    resolve(tempAudio.duration);
+                });
+                tempAudio.addEventListener('error', (e) => {
+                    URL.revokeObjectURL(audioUrl);
+                    reject(new Error("Could not determine audio duration."));
+                });
+            });
+        }
+
+        async function generateAudio(text, ttsApiKey, speaker) {
+            const voiceSelect = speaker === 'man' ? ui.manVoiceSelect : ui.womanVoiceSelect;
+            if (voiceSelect.disabled) {
+                throw new Error(`Cannot generate audio: No ${speaker} voices available for the selected language.`);
+            }
+            const voiceConfig = JSON.parse(voiceSelect.value);
+            const speakingRate = parseFloat(ui.speakingRateSlider.value);
+
+            const base64 = await fetchTTS(text, ttsApiKey, voiceConfig, speakingRate);
+            const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64}`)).blob();
+            const duration = await getAudioDuration(audioBlob);
+            return { blob: audioBlob, duration };
+        }
+
+        async function fetchTTS(text, ttsApiKey, voiceConfig, speakingRate) {
+            const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsApiKey}`;
+            const body = { 
+                input: { text }, 
+                voice: voiceConfig, 
+                audioConfig: { 
+                    audioEncoding: 'MP3',
+                    speakingRate: speakingRate
+                } 
+            };
+            const response = await fetch(url, { method: 'POST', body: JSON.stringify(body) });
+            if (!response.ok) {
+                 const errorJson = await response.json();
+                 throw new Error(`TTS API failed: ${errorJson.error.message}`);
+            }
+            const result = await response.json();
+            if (!result.audioContent) throw new Error("TTS API did not return audio content.");
+            return result.audioContent;
+        }
+        
+        function simpleRenderLoop() {
+            const ctx = ui.canvas.getContext('2d');
+            if (activeVideo && activeVideo.readyState >= 2) {
+                ctx.drawImage(activeVideo, 0, 0, ui.canvas.width, ui.canvas.height);
+            }
+            animationFrameId = requestAnimationFrame(simpleRenderLoop);
+        }
+
+        async function recordAndPlaySequence(dialogueLines) {
+            ui.statusArea.textContent = "Initializing video recorder...";
+            ui.canvas.classList.remove('hidden');
+            
+            if (!audioContext) {
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    audioSource = audioContext.createMediaElementSource(ui.audioPlayer);
+                    audioDestination = audioContext.createMediaStreamDestination();
+                    audioSource.connect(audioDestination);
+                    audioSource.connect(audioContext.destination);
+                } catch (e) {
+                    throw new Error("Could not initialize audio. Please click the page and try again.");
+                }
+            }
+            
+            const canvasStream = ui.canvas.captureStream(30);
+            const combinedStream = new MediaStream([...canvasStream.getTracks(), ...audioDestination.stream.getTracks()]);
+            const mimeType = MediaRecorder.isTypeSupported('video/mp4; codecs=avc1.42E01E,mp4a.40.2') ? 'video/mp4' : 'video/webm';
+            const fileExtension = mimeType.includes('mp4') ? 'mp4' : 'webm';
+
+            if (!MediaRecorder.isTypeSupported(mimeType)) throw new Error(`Video format ${mimeType} is not supported by your browser.`);
+
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 2500000 });
+            mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) recordedChunks.push(event.data); };
+            mediaRecorder.onerror = (event) => { throw new Error(`Video recording failed: ${event.error.name}`); };
+            
+            const recordingPromise = new Promise(resolve => {
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: mimeType });
+                    ui.downloadLink.href = URL.createObjectURL(blob);
+                    ui.downloadLink.download = `AI_Dialogue_${ui.aspectRatioSelect.value}.${fileExtension}`;
+                    ui.downloadLink.textContent = `Download ${fileExtension.toUpperCase()} Video`;
+                    ui.downloadLink.classList.remove('hidden');
+                    ui.statusArea.textContent = `${fileExtension.toUpperCase()} ready for download!`;
+                    ui.loader.classList.add('hidden');
+                    resolve();
+                };
+            });
+
+            mediaRecorder.start();
+            animationFrameId = requestAnimationFrame(simpleRenderLoop);
+
+            for (let i = 0; i < dialogueLines.length; i++) {
+                const line = dialogueLines[i];
+                ui.statusArea.textContent = `Scene ${i + 1}/${dialogueLines.length}: ${line.speaker.charAt(0).toUpperCase() + line.speaker.slice(1)}`;
+
+                const currentSpeakerVideo = line.speaker === 'man' ? backgroundAssets.man : backgroundAssets.woman;
+                
+                activeVideo = currentSpeakerVideo;
+                activeVideo.currentTime = 0;
+                await activeVideo.play();
+                
+                ui.audioPlayer.src = URL.createObjectURL(line.audio.blob);
+                await ui.audioPlayer.play();
+
+                await new Promise(resolve => {
+                    ui.audioPlayer.onended = () => {
+                        activeVideo.pause();
+                        setTimeout(resolve, 200);
+                    };
+                });
+            }
+
+            if (mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+            }
+            cancelAnimationFrame(animationFrameId);
+            activeVideo = null;
+            
+            return recordingPromise;
+        }
+
+        // --- Wake Lock Functions ---
+        async function requestWakeLock() {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    ui.statusArea.textContent = 'Screen wake lock active. Keep tab visible.';
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Screen Wake Lock was released');
+                    });
+                    console.log('Screen Wake Lock is active');
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                    ui.statusArea.textContent = 'Warning: Could not acquire wake lock.';
+                }
+            } else {
+                ui.statusArea.textContent = 'Warning: Wake Lock API not supported.';
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+        }
+        
+        // Initial setup on page load
+        function initializeApp() {
+            setupCanvasAndContainer();
+            populateLanguages();
+            const defaultLang = 'en-US';
+            ui.languageSelect.value = defaultLang;
+            populateVoices(defaultLang);
+            updateFullPrompt();
+        }
+
+        initializeApp();
+    </script>
+</body>
+</html>
