@@ -1,64 +1,525 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>AI Gen Video Generator - Home</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f7f7f7; }
-        .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 32px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);}
-        h1 { text-align: center; color: #333; }
-        .tool-list { list-style: none; padding: 0; }
-        .tool-item { margin: 32px 0; padding: 24px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;}
-        .tool-title { font-size: 1.3em; margin-bottom: 10px; color: #1976d2;}
-        .tool-desc { margin-bottom: 16px; color: #444;}
-        .tool-link { display: inline-block; padding: 8px 18px; background: #1976d2; color: #fff; border-radius: 4px; text-decoration: none; font-weight: bold;}
-        .tool-link:hover { background: #1565c0; }
-        @media (max-width: 600px) {
-            .container { padding: 12px; }
-            .tool-item { padding: 12px; }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Podcast Video Generator</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0f172a;
+      --card-bg: rgba(15, 23, 42, 0.9);
+      --accent: #38bdf8;
+      --accent-dark: #0ea5e9;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.08), rgba(15, 23, 42, 0.95)), linear-gradient(180deg, rgba(15, 23, 42, 0.95), #020617);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      letter-spacing: -0.03em;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      font-size: clamp(1.2rem, 3vw, 1.6rem);
+      margin: 32px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--accent);
+    }
+
+    h2::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--accent);
+      display: inline-block;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-top: 0;
+    }
+
+    .app-shell {
+      width: min(980px, 100%);
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 24px;
+      padding: clamp(20px, 4vw, 48px);
+      box-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
+      backdrop-filter: blur(18px);
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="url"],
+    textarea,
+    select {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 1rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea {
+      min-height: 140px;
+      resize: vertical;
+    }
+
+    input[type="file"] {
+      color: var(--muted);
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+    }
+
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 999px;
+      padding: 6px 14px;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .radio-option input {
+      accent-color: var(--accent);
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: #0b1120;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-weight: 600;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+      box-shadow: 0 18px 35px rgba(56, 189, 248, 0.2);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 20px 40px rgba(56, 189, 248, 0.25);
+    }
+
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .status {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      display: none;
+    }
+
+    .status.active {
+      display: block;
+    }
+
+    .status.error {
+      border-color: rgba(248, 113, 113, 0.4);
+      background: rgba(248, 113, 113, 0.1);
+      color: #fecaca;
+    }
+
+    .download {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .download a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .download a:hover {
+      text-decoration: underline;
+    }
+
+    .helper {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .options-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    @media (max-width: 700px) {
+      body {
+        padding: 24px 12px;
+      }
+
+      .app-shell {
+        padding: 24px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>AI Gen Video Generator</h1>
-        <ul class="tool-list">
-            <li class="tool-item">
-                <div class="tool-title">AI Audio Generator (V1)</div>
-                <div class="tool-desc">
-                    Generate realistic AI-powered audio from your text prompts. This tool allows you to input text and receive synthesized speech, ideal for voiceovers, podcasts, or accessibility features.
-                </div>
-                <a class="tool-link" href="AI_Audio_Gen_V1.html">Try AI Audio Generator</a>
-            </li>
-            <li class="tool-item">
-                <div class="tool-title">AI Video Generator (V1)</div>
-                <div class="tool-desc">
-                    Create simple AI-generated videos from your text or image inputs. This version focuses on basic video generation capabilities, making it easy to turn ideas into short video clips.
-                </div>
-                <a class="tool-link" href="AI_Video_Gen_V1.html">Try AI Video Generator V1</a>
-            </li>
-            <li class="tool-item">
-                <div class="tool-title">AI Video Generator (V2)</div>
-                <div class="tool-desc">
-                    Experience advanced AI video generation with enhanced features. Version 2 supports more customization, higher quality outputs, and additional input options for creating professional-grade AI videos.
-                </div>
-                <a class="tool-link" href="AI_Video_Gen_V2.html">Try AI Video Generator V2</a>
-            </li>
-            <li class="tool-item">
-                <div class="tool-title">YouTube Content AI Suite</div>
-                <div class="tool-desc">
-                    Generate titles, descriptions, keywords, and thumbnails for your videos.
-                </div>
-                <a class="tool-link" href="YT_Generate.html">Try AI Video Generator V3</a>
-            </li>
-            <li class="tool-item">
-                <div class="tool-title">AI Video Generator (V3)</div>
-                <div class="tool-desc">
-                    Generate Video about English Learning based on list of words.
-                </div>
-                <a class="tool-link" href="AI_Video_Gen_V3.html">Try AI Video Generator V3</a>                
-        </ul>
-    </div>
+  <main class="app-shell">
+    <header>
+      <h1>Podcast Video Generator</h1>
+      <p>Create AI-generated podcast conversations starring a duo of virtual hosts. Provide a topic, choose voices and video clips, then let the backend orchestrate Gemini, Google Cloud Text-to-Speech, and ffmpeg.</p>
+    </header>
+
+    <section>
+      <h2>1. Authenticate</h2>
+      <div class="field">
+        <label for="apiKey">Google Cloud API Key / Token</label>
+        <input type="text" id="apiKey" placeholder="Paste your Google Cloud API key" autocomplete="off" required>
+        <span class="helper">This key must have access to Vertex AI (Gemini) and Google Cloud Text-to-Speech APIs.</span>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Provide a Topic</h2>
+      <div class="field">
+        <label for="youtubeUrl">YouTube URL</label>
+        <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
+
+      <div class="field">
+        <label for="topicFile">Upload Topic File</label>
+        <input type="file" id="topicFile" accept=".pdf,.txt,.md,.mp3,.wav,.m4a,.aac,.flac,.jpg,.jpeg,.png,.gif,.bmp,.webp">
+        <span class="helper">Upload supporting files such as PDFs, audio, or images. They will be passed to Gemini for multimodal context.</span>
+      </div>
+
+      <div class="field">
+        <label for="topicText">Plain Text Topic</label>
+        <textarea id="topicText" placeholder="Describe the topic you'd like the hosts to discuss..."></textarea>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Voice Configuration (Chirp)</h2>
+      <div class="grid-two">
+        <div class="field">
+          <label for="language">Language</label>
+          <select id="language"></select>
+        </div>
+        <div class="field">
+          <label for="manVoice">Man's Voice (Chirp)</label>
+          <select id="manVoice"></select>
+        </div>
+        <div class="field">
+          <label for="womanVoice">Woman's Voice (Chirp)</label>
+          <select id="womanVoice"></select>
+        </div>
+      </div>
+      <span class="helper">Only voices from the Google Cloud Chirp family are available. Ensure your project has the Chirp beta enabled.</span>
+    </section>
+
+    <section>
+      <h2>4. Video Assets</h2>
+      <div class="grid-two">
+        <div class="options-card" id="manVideoCard">
+          <h3>Man Video</h3>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="manVideoOption" value="default" checked>Default</label>
+            <label class="radio-option"><input type="radio" name="manVideoOption" value="custom">Custom Upload</label>
+            <label class="radio-option"><input type="radio" name="manVideoOption" value="library">Library</label>
+          </div>
+          <div class="field" data-option="custom">
+            <label for="manVideoFile">Upload MP4 (≈5 seconds)</label>
+            <input type="file" id="manVideoFile" accept="video/mp4">
+          </div>
+          <div class="field" data-option="library">
+            <label for="manVideoLibrary">Choose from Library</label>
+            <select id="manVideoLibrary"></select>
+          </div>
+        </div>
+
+        <div class="options-card" id="womanVideoCard">
+          <h3>Woman Video</h3>
+          <div class="radio-group">
+            <label class="radio-option"><input type="radio" name="womanVideoOption" value="default" checked>Default</label>
+            <label class="radio-option"><input type="radio" name="womanVideoOption" value="custom">Custom Upload</label>
+            <label class="radio-option"><input type="radio" name="womanVideoOption" value="library">Library</label>
+          </div>
+          <div class="field" data-option="custom">
+            <label for="womanVideoFile">Upload MP4 (≈5 seconds)</label>
+            <input type="file" id="womanVideoFile" accept="video/mp4">
+          </div>
+          <div class="field" data-option="library">
+            <label for="womanVideoLibrary">Choose from Library</label>
+            <select id="womanVideoLibrary"></select>
+          </div>
+        </div>
+      </div>
+      <span class="helper">Video clips should be roughly five seconds long. The backend will loop them to match each spoken line.</span>
+    </section>
+
+    <section>
+      <h2>5. Podcast Settings</h2>
+      <div class="grid-two">
+        <div class="field">
+          <label for="podcastLength">Desired Podcast Length (minutes)</label>
+          <input type="number" id="podcastLength" min="1" step="0.5" value="5">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. Generate</h2>
+      <button id="generateBtn">Generate Podcast</button>
+      <div id="status" class="status"></div>
+      <div id="download" class="download">
+        <strong>Your podcast video is ready:</strong>
+        <p><a id="downloadLink" href="#" download>Download MP4</a></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const languages = ['en-US', 'en-GB', 'es-ES', 'fr-FR', 'de-DE'];
+    const chirpManVoices = [
+      'en-US-chirp-m',
+      'en-GB-chirp-m',
+      'es-ES-chirp-m',
+      'fr-FR-chirp-m',
+      'de-DE-chirp-m'
+    ];
+    const chirpWomanVoices = [
+      'en-US-chirp-f',
+      'en-GB-chirp-f',
+      'es-ES-chirp-f',
+      'fr-FR-chirp-f',
+      'de-DE-chirp-f'
+    ];
+    const videoLibrary = {
+      man: [
+        { value: 'studio', label: 'Studio Host' },
+        { value: 'office', label: 'Modern Office' }
+      ],
+      woman: [
+        { value: 'studio', label: 'Studio Host' },
+        { value: 'office', label: 'Modern Office' }
+      ]
+    };
+
+    const languageSelect = document.getElementById('language');
+    const manVoiceSelect = document.getElementById('manVoice');
+    const womanVoiceSelect = document.getElementById('womanVoice');
+
+    function populateSelect(select, options) {
+      select.innerHTML = '';
+      options.forEach((value) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
+      });
+    }
+
+    populateSelect(languageSelect, languages);
+    populateSelect(manVoiceSelect, chirpManVoices);
+    populateSelect(womanVoiceSelect, chirpWomanVoices);
+
+    function populateVideoLibrary(select, options) {
+      select.innerHTML = '';
+      options.forEach(({ value, label }) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        select.appendChild(option);
+      });
+    }
+
+    populateVideoLibrary(document.getElementById('manVideoLibrary'), videoLibrary.man);
+    populateVideoLibrary(document.getElementById('womanVideoLibrary'), videoLibrary.woman);
+
+    function setupVideoOptionToggle(cardId, radioName) {
+      const card = document.getElementById(cardId);
+      const radios = card.querySelectorAll(`input[name="${radioName}"]`);
+      const customField = card.querySelector('[data-option="custom"]');
+      const libraryField = card.querySelector('[data-option="library"]');
+
+      function toggleFields(value) {
+        customField.style.display = value === 'custom' ? 'flex' : 'none';
+        libraryField.style.display = value === 'library' ? 'flex' : 'none';
+      }
+
+      radios.forEach((radio) => {
+        radio.addEventListener('change', (event) => {
+          toggleFields(event.target.value);
+        });
+      });
+
+      toggleFields(card.querySelector(`input[name="${radioName}"]:checked`).value);
+    }
+
+    setupVideoOptionToggle('manVideoCard', 'manVideoOption');
+    setupVideoOptionToggle('womanVideoCard', 'womanVideoOption');
+
+    const statusEl = document.getElementById('status');
+    const downloadEl = document.getElementById('download');
+    const downloadLink = document.getElementById('downloadLink');
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.classList.toggle('active', Boolean(message));
+      statusEl.classList.toggle('error', isError);
+    }
+
+    async function handleGenerate() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+      const topicText = document.getElementById('topicText').value.trim();
+      const topicFile = document.getElementById('topicFile').files[0] || null;
+      const podcastLength = document.getElementById('podcastLength').value;
+      const languageCode = languageSelect.value;
+      const manVoice = manVoiceSelect.value;
+      const womanVoice = womanVoiceSelect.value;
+
+      if (!apiKey) {
+        setStatus('Please provide your Google Cloud API key.', true);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('apiKey', apiKey);
+      formData.append('youtubeUrl', youtubeUrl);
+      formData.append('topicText', topicText);
+      formData.append('podcastLength', podcastLength);
+      formData.append('languageCode', languageCode);
+      formData.append('manVoice', manVoice);
+      formData.append('womanVoice', womanVoice);
+
+      if (topicFile) {
+        formData.append('topicFile', topicFile, topicFile.name);
+      }
+
+      const manVideoOption = document.querySelector('input[name="manVideoOption"]:checked').value;
+      const womanVideoOption = document.querySelector('input[name="womanVideoOption"]:checked').value;
+      formData.append('manVideoOption', manVideoOption);
+      formData.append('womanVideoOption', womanVideoOption);
+
+      if (manVideoOption === 'custom') {
+        const file = document.getElementById('manVideoFile').files[0];
+        if (!file) {
+          setStatus('Please upload a custom video for the man.', true);
+          return;
+        }
+        formData.append('manVideoFile', file, file.name);
+      } else if (manVideoOption === 'library') {
+        const selection = document.getElementById('manVideoLibrary').value;
+        formData.append('manLibraryVideo', selection);
+      }
+
+      if (womanVideoOption === 'custom') {
+        const file = document.getElementById('womanVideoFile').files[0];
+        if (!file) {
+          setStatus('Please upload a custom video for the woman.', true);
+          return;
+        }
+        formData.append('womanVideoFile', file, file.name);
+      } else if (womanVideoOption === 'library') {
+        const selection = document.getElementById('womanVideoLibrary').value;
+        formData.append('womanLibraryVideo', selection);
+      }
+
+      setStatus('Generating podcast... This may take several minutes depending on the requested duration.');
+      downloadEl.style.display = 'none';
+
+      const button = document.getElementById('generateBtn');
+      button.disabled = true;
+      button.textContent = 'Generating...';
+
+      try {
+        const response = await fetch('/generate-podcast', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ error: 'Failed to generate podcast.' }));
+          throw new Error(error.error || 'Failed to generate podcast.');
+        }
+
+        const data = await response.json();
+        if (data.downloadUrl) {
+          downloadLink.href = data.downloadUrl;
+          downloadEl.style.display = 'block';
+          setStatus('Podcast generated successfully. Download your video below.');
+        } else {
+          throw new Error('The server did not return a download URL.');
+        }
+      } catch (error) {
+        console.error(error);
+        setStatus(error.message || 'An unexpected error occurred.', true);
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Generate Podcast';
+      }
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', handleGenerate);
+  </script>
 </body>
 </html>
