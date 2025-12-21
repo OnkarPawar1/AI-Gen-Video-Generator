@@ -71,6 +71,48 @@
                     <label for="woman_video_input" class="block text-sm font-medium text-gray-700">Woman's Video (Talking)</label>
                     <input type="file" id="woman_video_input" accept="video/mp4,video/webm" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"/>
                 </div>
+                <div class="bg-gray-50 border border-dashed border-gray-300 rounded-xl p-4">
+                    <p class="text-sm font-semibold text-gray-800 mb-3">Built-in Talking Head Library</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="man_video_select" class="block text-xs font-medium text-gray-600 uppercase tracking-wide">Select Man Actor</label>
+                            <select id="man_video_select" class="mt-1 block w-full pl-3 pr-10 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm">
+                                <option value="">Loading...</option>
+                            </select>
+                            <div id="man_asset_preview" class="hidden mt-3 flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5">
+                                <img id="man_asset_thumbnail" class="w-12 h-12 rounded-md object-cover border border-gray-100" alt="Selected man actor preview">
+                                <div class="text-sm text-gray-700" id="man_asset_label"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="woman_video_select" class="block text-xs font-medium text-gray-600 uppercase tracking-wide">Select Woman Actor</label>
+                            <select id="woman_video_select" class="mt-1 block w-full pl-3 pr-10 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 text-sm">
+                                <option value="">Loading...</option>
+                            </select>
+                            <div id="woman_asset_preview" class="hidden mt-3 flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2.5">
+                                <img id="woman_asset_thumbnail" class="w-12 h-12 rounded-md object-cover border border-gray-100" alt="Selected woman actor preview">
+                                <div class="text-sm text-gray-700" id="woman_asset_label"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">These clips are loaded directly from the <span class="font-semibold">AI-Gen-Video-Generator</span> GitHub repository.</p>
+                    <div class="mt-4 space-y-3">
+                        <div>
+                            <label for="video_title_input" class="block text-sm font-medium text-gray-700">Video Title (optional)</label>
+                            <input type="text" id="video_title_input" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" placeholder="e.g., AI Interview Practice Session">
+                        </div>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" id="show_subtitles_toggle" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked>
+                            Show subtitles inside the video
+                        </label>
+                        <div>
+                            <label for="subtitle_font_slider" class="block text-sm font-medium text-gray-700">
+                                Subtitle Font Size: <span id="subtitle_font_size_value" class="font-semibold">26</span>px
+                            </label>
+                            <input type="range" id="subtitle_font_slider" min="16" max="44" value="26" step="1" class="mt-1 w-full h-10 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Content Inputs -->
@@ -171,6 +213,9 @@
     <script>
         // --- Configuration ---
         const LOCATION = "us-central1";
+        const GITHUB_REPO = "OnkarPawar1/AI-Gen-Video-Generator";
+        const GITHUB_BRANCH = "main";
+        const GITHUB_CONTENTS_BASE = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
         
         // --- Corrected Voice Data with proper language prefixes ---
         const chirpMaleVoices = [
@@ -288,6 +333,8 @@
             speakingRateValue: document.getElementById('speaking_rate_value'),
             manVideoInput: document.getElementById('man_video_input'),
             womanVideoInput: document.getElementById('woman_video_input'),
+            manVideoSelect: document.getElementById('man_video_select'),
+            womanVideoSelect: document.getElementById('woman_video_select'),
             aspectRatioSelect: document.getElementById('aspect_ratio_select'),
             outputContainer: document.getElementById('output_container'),
             languageSelect: document.getElementById('language_select'),
@@ -295,6 +342,16 @@
             womanVoiceSelect: document.getElementById('woman_voice_select'),
             scriptDisplayArea: document.getElementById('script_display_area'),
             scriptText: document.getElementById('script_text'),
+            manAssetPreview: document.getElementById('man_asset_preview'),
+            manAssetThumbnail: document.getElementById('man_asset_thumbnail'),
+            manAssetLabel: document.getElementById('man_asset_label'),
+            womanAssetPreview: document.getElementById('woman_asset_preview'),
+            womanAssetThumbnail: document.getElementById('woman_asset_thumbnail'),
+            womanAssetLabel: document.getElementById('woman_asset_label'),
+            videoTitleInput: document.getElementById('video_title_input'),
+            showSubtitlesToggle: document.getElementById('show_subtitles_toggle'),
+            subtitleFontSlider: document.getElementById('subtitle_font_slider'),
+            subtitleFontSizeValue: document.getElementById('subtitle_font_size_value'),
         };
 
         // --- Globals ---
@@ -302,6 +359,8 @@
         let recordedChunks = [];
         let animationFrameId;
         let backgroundAssets = { man: null, woman: null };
+        const videoLibrary = { man: [], woman: [] };
+        const overlayState = { title: '', showSubtitles: true, currentSubtitle: '', subtitleFontSize: 26 };
         let audioContext = null;
         let audioSource = null;
         let audioDestination = null;
@@ -317,6 +376,11 @@
         ui.aspectRatioSelect.addEventListener('change', setupCanvasAndContainer);
         ui.languageSelect.addEventListener('change', (e) => populateVoices(e.target.value));
         ui.scriptPromptInput.addEventListener('input', updateFullPrompt);
+        ui.manVideoSelect.addEventListener('change', () => handleVideoLibrarySelection(ui.manVideoSelect, ui.manVideoPlayer, 'man'));
+        ui.womanVideoSelect.addEventListener('change', () => handleVideoLibrarySelection(ui.womanVideoSelect, ui.womanVideoPlayer, 'woman'));
+        if (ui.subtitleFontSlider) {
+            ui.subtitleFontSlider.addEventListener('input', handleSubtitleFontResize);
+        }
 
         // --- Functions ---
         function fillDefaultCredentials() {
@@ -384,14 +448,166 @@
         function handleVideoUpload(inputElement, playerElement, speaker) {
             if (inputElement.files && inputElement.files[0]) {
                 const fileURL = URL.createObjectURL(inputElement.files[0]);
-                playerElement.src = fileURL;
-                playerElement.load(); // Important: trigger the load process
-                
-                if (!backgroundAssets.man && !backgroundAssets.woman) {
-                    playerElement.classList.remove('hidden');
-                    ui.messageArea.classList.add('hidden');
+                setVideoSource(fileURL, playerElement, speaker);
+                clearLibrarySelection(speaker);
+                const fileName = inputElement.files[0].name || `${speaker} clip`;
+                updateLibraryPreview(speaker, { label: `Custom upload: ${fileName}` });
+            }
+        }
+
+        function setVideoSource(sourceUrl, playerElement, speaker) {
+            if (!sourceUrl || !playerElement) return;
+            playerElement.crossOrigin = 'anonymous';
+            playerElement.src = sourceUrl;
+            playerElement.load();
+            playerElement.classList.remove('hidden');
+            ui.messageArea.classList.add('hidden');
+            backgroundAssets[speaker] = playerElement;
+        }
+
+        function clearLibrarySelection(speaker) {
+            const select = speaker === 'man' ? ui.manVideoSelect : ui.womanVideoSelect;
+            if (select) {
+                select.value = '';
+            }
+        }
+
+        function handleVideoLibrarySelection(selectElement, playerElement, speaker) {
+            if (!selectElement || !playerElement) return;
+            if (!selectElement.value) {
+                updateLibraryPreview(speaker, null);
+                return;
+            }
+            let assetConfig = null;
+            try {
+                assetConfig = JSON.parse(selectElement.value);
+            } catch (err) {
+                console.error('Invalid library selection payload', err);
+                return;
+            }
+            if (!assetConfig.videoUrl) return;
+            setVideoSource(assetConfig.videoUrl, playerElement, speaker);
+            updateLibraryPreview(speaker, assetConfig);
+            const inputElement = speaker === 'man' ? ui.manVideoInput : ui.womanVideoInput;
+            if (inputElement) {
+                inputElement.value = '';
+            }
+        }
+
+        function updateLibraryPreview(speaker, data) {
+            const preview = speaker === 'man'
+                ? { container: ui.manAssetPreview, thumb: ui.manAssetThumbnail, label: ui.manAssetLabel }
+                : { container: ui.womanAssetPreview, thumb: ui.womanAssetThumbnail, label: ui.womanAssetLabel };
+            if (!preview.container) return;
+
+            if (!data) {
+                preview.container.classList.add('hidden');
+                preview.label.textContent = '';
+                if (preview.thumb) {
+                    preview.thumb.src = '';
+                    preview.thumb.classList.add('hidden');
                 }
-                backgroundAssets[speaker] = playerElement;
+                return;
+            }
+
+            preview.container.classList.remove('hidden');
+            preview.label.textContent = data.label || 'Selected clip';
+            if (preview.thumb) {
+                if (data.thumbnail) {
+                    preview.thumb.src = data.thumbnail;
+                    preview.thumb.classList.remove('hidden');
+                } else {
+                    preview.thumb.src = '';
+                    preview.thumb.classList.add('hidden');
+                }
+            }
+        }
+
+        async function initializeVideoLibrary() {
+            try {
+                const [videoItems, imageItems] = await Promise.all([
+                    fetchJsonOrThrow(`${GITHUB_CONTENTS_BASE}/video-assets?ref=${GITHUB_BRANCH}`, 'video assets'),
+                    fetchJsonOrThrow(`${GITHUB_CONTENTS_BASE}/image-assets?ref=${GITHUB_BRANCH}`, 'image assets')
+                ]);
+                const imageMap = imageItems.reduce((acc, file) => {
+                    const key = file.name ? file.name.replace(/\.[^/.]+$/, '') : '';
+                    if (key) acc[key] = file.download_url;
+                    return acc;
+                }, {});
+                videoLibrary.man = buildVideoLibrary(videoItems, 'man', imageMap);
+                videoLibrary.woman = buildVideoLibrary(videoItems, 'woman', imageMap);
+                populateVideoLibrarySelect(ui.manVideoSelect, videoLibrary.man, 'Select a built-in man clip');
+                populateVideoLibrarySelect(ui.womanVideoSelect, videoLibrary.woman, 'Select a built-in woman clip');
+            } catch (error) {
+                console.error('Failed to load built-in assets:', error);
+                if (ui.manVideoSelect) {
+                    ui.manVideoSelect.innerHTML = '<option value="">Unavailable</option>';
+                    ui.manVideoSelect.disabled = true;
+                }
+                if (ui.womanVideoSelect) {
+                    ui.womanVideoSelect.innerHTML = '<option value="">Unavailable</option>';
+                    ui.womanVideoSelect.disabled = true;
+                }
+            }
+        }
+
+        function buildVideoLibrary(videoItems, prefix, imageMap) {
+            return videoItems
+                .filter(item => item.name && item.name.startsWith(prefix) && item.download_url)
+                .sort((a, b) => {
+                    const suffixA = extractNumericSuffix(a.name, prefix);
+                    const suffixB = extractNumericSuffix(b.name, prefix);
+                    return suffixA - suffixB;
+                })
+                .map(item => {
+                    const baseName = item.name.replace(/\.mp4$/i, '');
+                    const suffixNumber = extractNumericSuffix(item.name, prefix);
+                    const labelSuffix = suffixNumber.toString().padStart(2, '0');
+                    return {
+                        label: `${prefix === 'man' ? 'Man' : 'Woman'} ${labelSuffix}`,
+                        videoUrl: item.download_url,
+                        thumbnail: imageMap[baseName] || null
+                    };
+                });
+        }
+
+        function extractNumericSuffix(value, prefix) {
+            const numericPart = value.replace(prefix, '').replace(/\.mp4$/i, '').replace(/\D/g, '');
+            const parsed = parseInt(numericPart, 10);
+            return Number.isNaN(parsed) ? 0 : parsed;
+        }
+
+        function populateVideoLibrarySelect(selectElement, assets, placeholder) {
+            if (!selectElement) return;
+            selectElement.innerHTML = '';
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = placeholder;
+            selectElement.appendChild(defaultOption);
+
+            assets.forEach(asset => {
+                const option = document.createElement('option');
+                option.value = JSON.stringify(asset);
+                option.textContent = asset.label;
+                selectElement.appendChild(option);
+            });
+
+            selectElement.disabled = assets.length === 0;
+        }
+
+        async function fetchJsonOrThrow(url, contextLabel) {
+            const response = await fetch(url, { headers: { 'Accept': 'application/vnd.github+json' } });
+            if (!response.ok) {
+                throw new Error(`${contextLabel} request failed (${response.status})`);
+            }
+            return response.json();
+        }
+
+        function handleSubtitleFontResize() {
+            if (!ui.subtitleFontSlider || !ui.subtitleFontSizeValue) return;
+            const fontSize = parseInt(ui.subtitleFontSlider.value, 10);
+            if (!Number.isNaN(fontSize)) {
+                ui.subtitleFontSizeValue.textContent = fontSize;
             }
         }
         
@@ -581,15 +797,97 @@ Your response must only be the script itself.`;
         
         function simpleRenderLoop() {
             const ctx = ui.canvas.getContext('2d');
+            ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
             if (activeVideo && activeVideo.readyState >= 2) {
                 ctx.drawImage(activeVideo, 0, 0, ui.canvas.width, ui.canvas.height);
             }
+            drawTitleOverlay(ctx);
+            drawSubtitleOverlay(ctx);
             animationFrameId = requestAnimationFrame(simpleRenderLoop);
+        }
+
+        function drawTitleOverlay(ctx) {
+            if (!overlayState.title) return;
+            const canvasWidth = ui.canvas.width;
+            ctx.save();
+            ctx.font = '700 32px "Inter", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            const maxTextWidth = canvasWidth * 0.85;
+            const lineHeight = 40;
+            const lines = wrapText(ctx, overlayState.title, maxTextWidth);
+            const widestLine = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+            const paddingX = 24;
+            const paddingY = 14;
+            const blockWidth = Math.min(widestLine + paddingX * 2, canvasWidth - 32);
+            const blockHeight = lines.length * lineHeight + paddingY * 2;
+            const x = (canvasWidth - blockWidth) / 2;
+            const y = 24;
+            ctx.fillStyle = 'rgba(220, 38, 38, 0.95)';
+            ctx.fillRect(x, y, blockWidth, blockHeight);
+            ctx.fillStyle = '#ffffff';
+            lines.forEach((line, index) => {
+                const textY = y + paddingY + index * lineHeight;
+                ctx.fillText(line, canvasWidth / 2, textY);
+            });
+            ctx.restore();
+        }
+
+        function drawSubtitleOverlay(ctx) {
+            if (!overlayState.showSubtitles || !overlayState.currentSubtitle) return;
+            const canvasWidth = ui.canvas.width;
+            const canvasHeight = ui.canvas.height;
+            ctx.save();
+            const fontSize = overlayState.subtitleFontSize || 26;
+            ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            const maxTextWidth = canvasWidth * 0.9;
+            const lineHeight = fontSize + 8;
+            const lines = wrapText(ctx, overlayState.currentSubtitle, maxTextWidth);
+            const widestLine = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
+            const paddingX = 24;
+            const paddingY = 18;
+            const blockWidth = Math.min(widestLine + paddingX * 2, canvasWidth - 32);
+            const blockHeight = lines.length * lineHeight + paddingY * 2;
+            const x = (canvasWidth - blockWidth) / 2;
+            const y = canvasHeight - blockHeight - 28;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.fillRect(x, y, blockWidth, blockHeight);
+            ctx.fillStyle = '#ffffff';
+            lines.forEach((line, index) => {
+                const textY = y + paddingY + index * lineHeight;
+                ctx.fillText(line, canvasWidth / 2, textY);
+            });
+            ctx.restore();
+        }
+
+        function wrapText(ctx, text, maxWidth) {
+            if (!text) return [];
+            const words = text.split(/\s+/);
+            const lines = [];
+            let currentLine = '';
+            words.forEach(word => {
+                const tentativeLine = currentLine ? `${currentLine} ${word}` : word;
+                if (ctx.measureText(tentativeLine).width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = tentativeLine;
+                }
+            });
+            if (currentLine) lines.push(currentLine);
+            return lines;
         }
 
         async function recordAndPlaySequence(dialogueLines) {
             ui.statusArea.textContent = "Initializing video recorder...";
             ui.canvas.classList.remove('hidden');
+            overlayState.title = (ui.videoTitleInput?.value || '').trim();
+            overlayState.showSubtitles = ui.showSubtitlesToggle ? ui.showSubtitlesToggle.checked : true;
+            overlayState.currentSubtitle = '';
+            const requestedFontSize = ui.subtitleFontSlider ? parseInt(ui.subtitleFontSlider.value, 10) : 26;
+            overlayState.subtitleFontSize = Number.isNaN(requestedFontSize) ? 26 : requestedFontSize;
             
             if (!audioContext) {
                 try {
@@ -639,14 +937,20 @@ Your response must only be the script itself.`;
                 
                 activeVideo = currentSpeakerVideo;
                 activeVideo.currentTime = 0;
+                activeVideo.loop = true;
                 await activeVideo.play();
+                const speakerLabel = line.speaker === 'man' ? 'Man' : 'Woman';
+                overlayState.currentSubtitle = `${speakerLabel}: ${line.text}`;
                 
                 ui.audioPlayer.src = URL.createObjectURL(line.audio.blob);
                 await ui.audioPlayer.play();
 
                 await new Promise(resolve => {
                     ui.audioPlayer.onended = () => {
+                        activeVideo.loop = false;
                         activeVideo.pause();
+                        activeVideo.currentTime = 0;
+                        overlayState.currentSubtitle = '';
                         setTimeout(resolve, 200);
                     };
                 });
@@ -695,6 +999,10 @@ Your response must only be the script itself.`;
             ui.languageSelect.value = defaultLang;
             populateVoices(defaultLang);
             updateFullPrompt();
+            ui.manVideoPlayer.crossOrigin = 'anonymous';
+            ui.womanVideoPlayer.crossOrigin = 'anonymous';
+            handleSubtitleFontResize();
+            initializeVideoLibrary();
         }
 
         initializeApp();
