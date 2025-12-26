@@ -32,18 +32,44 @@
             height: 100%;
             object-fit: cover; /* Ensures video covers the container */
         }
+        .gallery-item {
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .gallery-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .gallery-item.selected {
+            box-shadow: 0 0 0 3px #4f46e5;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen py-8">
 
-    <div class="w-full max-w-6xl mx-auto bg-white rounded-2xl shadow-2xl p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div class="w-full max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl p-8 space-y-8">
+        
+        <!-- Top Section: Output -->
+        <div class="flex flex-col space-y-4">
+            <div id="output_container" class="w-full bg-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden border-2 border-gray-300 aspect-[16/9]">
+                <div id="loader" class="loader hidden"></div>
+                <div id="message_area" class="text-gray-400 px-4 text-center z-10">Upload both videos and enter a prompt to begin.</div>
+                <video id="man_video_player" class="video_player hidden" muted playsinline></video>
+                <video id="woman_video_player" class="video_player hidden" muted playsinline></video>
+                <canvas id="video_canvas" class="hidden"></canvas>
+                <audio id="audio_player" class="hidden" crossOrigin="anonymous"></audio>
+            </div>
+            <div id="status_area" class="text-center text-sm text-gray-600 h-5"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         <!-- Left Column: Controls -->
-        <div class="space-y-6">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900">AI Dialogue Video Generator V4</h1>
-                <p class="text-gray-600 mt-1">Create a video conversation using AI, with flexible aspect ratios.</p>
-            </div>
+            <div class="space-y-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">AI Dialogue Video Generator V4</h1>
+                    <p class="text-gray-600 mt-1">Create a video conversation using AI, with flexible aspect ratios.</p>
+                </div>
             
             <!-- Core Inputs -->
             <div class="space-y-4">
@@ -136,9 +162,36 @@
                         </optgroup>
                     </select>
                 </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="video_length_select" class="block text-sm font-medium text-gray-700">Video Length</label>
+                        <select id="video_length_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="2-6">Snippet (2-6 lines)</option>
+                            <option value="7-15">Concise (7-15 lines)</option>
+                            <option value="16-25">Brief (16-25 lines)</option>
+                            <option value="26-40">Standard (26-40 lines)</option>
+                            <option value="41-70">Expanded (41-70 lines)</option>
+                            <option value="71-110">Detailed (71-110 lines)</option>
+                            <option value="111-150">Comprehensive (111-150 lines)</option>
+                            <option value="151-179">Extensive (151-179 lines)</option>
+                            <option value="180-190">Long (180-190 lines)</option>
+                            <option value="191-250">Deep Dive (191-250 lines)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="script_language_select" class="block text-sm font-medium text-gray-700">Script Language</label>
+                        <select id="script_language_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
+                    </div>
+                </div>
                  <div>
                     <label for="script_prompt_input" class="block text-sm font-medium text-gray-700">Script Topic</label>
                     <textarea id="script_prompt_input" rows="2" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., A brief, friendly argument about whether pineapple belongs on pizza."></textarea>
+                    <div class="mt-3">
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                            <input type="checkbox" id="interactive_mode_toggle" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            Interactive Script Mode (Edit script before generating)
+                        </label>
+                    </div>
                 </div>
                 <div>
                     <label for="full_prompt_input" class="block text-sm font-medium text-gray-700">Full AI Prompt (Editable)</label>
@@ -153,8 +206,8 @@
                     <div>
                         <label for="aspect_ratio_select" class="block text-sm font-medium text-gray-700">Aspect Ratio</label>
                         <select id="aspect_ratio_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option value="9:16" selected>9:16 (Portrait)</option>
-                            <option value="16:9">16:9 (Landscape)</option>
+                            <option value="9:16">9:16 (Portrait)</option>
+                            <option value="16:9" selected>16:9 (Landscape)</option>
                         </select>
                     </div>
                     <div>
@@ -178,35 +231,81 @@
                         <select id="woman_voice_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"></select>
                      </div>
                  </div>
+                 <div class="pt-4 border-t">
+                    <h3 class="text-md font-semibold text-gray-800 mb-2">Subtitle Styling</h3>
+                    <p class="text-xs text-gray-500 mb-3">Customize the look of the subtitles. Defaults are used if none are selected.</p>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Man's Subtitles</h4>
+                            <div class="space-y-2">
+                                <div>
+                                    <label for="man_subtitle_text_color" class="block text-xs font-medium text-gray-600">Text Color</label>
+                                    <input type="color" id="man_subtitle_text_color" value="#FFFFFF" class="mt-1 p-1 h-10 w-full block border border-gray-300 rounded-md cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Woman's Subtitles</h4>
+                            <div class="space-y-2">
+                                <div>
+                                    <label for="woman_subtitle_text_color" class="block text-xs font-medium text-gray-600">Text Color</label>
+                                    <input type="color" id="woman_subtitle_text_color" value="#FFFFFF" class="mt-1 p-1 h-10 w-full block border border-gray-300 rounded-md cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label for="subtitle_animation_select" class="block text-sm font-medium text-gray-700">Subtitle Animation</label>
+                        <select id="subtitle_animation_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="none">None</option>
+                            <option value="fade" selected>Fade In</option>
+                            <option value="slide-up">Slide Up</option>
+                            <option value="slide-down">Slide Down</option>
+                            <option value="slide-left">Slide from Left</option>
+                            <option value="slide-right">Slide from Right</option>
+                            <option value="scale">Scale In (Pop)</option>
+                            <option value="typewriter">Typewriter *DO NOT USE*</option>
+                        </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Video Library Gallery -->
+            <div class="space-y-4 pt-4 border-t">
+                <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">Actor Library</h2>
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-2">Men</h3>
+                    <div id="man_gallery" class="grid grid-cols-3 sm:grid-cols-4 gap-4"></div>
+                </div>
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-2">Women</h3>
+                    <div id="woman_gallery" class="grid grid-cols-3 sm:grid-cols-4 gap-4"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Right Column: Output -->
+        <!-- Right Column: Actions and Script -->
         <div class="flex flex-col space-y-4">
-            <div id="output_container" class="w-full bg-gray-900 rounded-lg flex items-center justify-center relative overflow-hidden border-2 border-gray-300 aspect-[9/16]">
-                <div id="loader" class="loader hidden"></div>
-                <div id="message_area" class="text-gray-400 px-4 text-center z-10">Upload both videos and enter a prompt to begin.</div>
-                <video id="man_video_player" class="video_player hidden" muted playsinline></video>
-                <video id="woman_video_player" class="video_player hidden" muted playsinline></video>
-                <canvas id="video_canvas" class="hidden"></canvas>
-                <audio id="audio_player" class="hidden" crossOrigin="anonymous"></audio>
-            </div>
-            
-            <div class="space-y-2">
-                <div id="status_area" class="text-center text-sm text-gray-600 h-5"></div>
+             <div class="space-y-2">
                 <button id="generate_btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                     Generate Video
+                </button>
+                <button id="generate_custom_video_btn" class="hidden w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
+                    Generate From Custom Script
                 </button>
                 <a id="download_link" class="hidden w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     Download Video
                 </a>
             </div>
 
-            <!-- Script Display Area -->
-            <div id="script_display_area" class="hidden w-full p-4 mt-2 bg-gray-50 border border-gray-200 rounded-lg">
-                <h3 class="text-md font-semibold text-gray-800 mb-2">Generated Script</h3>
-                <pre id="script_text" class="text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white p-3 rounded-md border"></pre>
+             <!-- Script Display Area -->
+            <div id="script_display_area" class="hidden w-full p-4 mt-2 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg flex-grow">
+                <h3 id="script_area_title" class="text-md font-semibold text-gray-800 mb-2">Generated Script</h3>
+                <p id="script_area_instructions" class="hidden text-xs text-gray-500 mb-2">You can edit the script below. Ensure each line starts with "Man:" or "Woman:".</p>
+                <textarea id="script_text_area" rows="8" class="w-full text-sm text-gray-700 whitespace-pre-wrap font-sans bg-white p-3 rounded-md border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500" readonly></textarea>
             </div>
+        </div>
         </div>
     </div>
 
@@ -216,6 +315,10 @@
         const GITHUB_REPO = "OnkarPawar1/AI-Gen-Video-Generator";
         const GITHUB_BRANCH = "main";
         const GITHUB_CONTENTS_BASE = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
+
+        // Unique names for the built-in actors (Expanded to 19)
+        const manNames = ["David", "Ethan", "Andre", "Lucas", "Marco", "James", "Omar", "Leo", "Richard", "Kai", "Samuel", "Daniel", "Chris", "Alex", "Jordan", "Ryan", "Ben", "Noah", "Elijah"];
+        const womanNames = ["Olivia", "Sophia", "Ava", "Isabella", "Mia", "Chloe", "Elena", "Layla", "Zara", "Evelyn", "Grace", "Lily", "Hannah", "Zoe", "Nora", "Aria", "Stella", "Maya", "Emily"];
         
         // --- Corrected Voice Data with proper language prefixes ---
         const chirpMaleVoices = [
@@ -337,6 +440,8 @@
             womanVideoSelect: document.getElementById('woman_video_select'),
             aspectRatioSelect: document.getElementById('aspect_ratio_select'),
             outputContainer: document.getElementById('output_container'),
+            videoLengthSelect: document.getElementById('video_length_select'),
+            scriptLanguageSelect: document.getElementById('script_language_select'),
             languageSelect: document.getElementById('language_select'),
             manVoiceSelect: document.getElementById('man_voice_select'),
             womanVoiceSelect: document.getElementById('woman_voice_select'),
@@ -349,25 +454,44 @@
             womanAssetThumbnail: document.getElementById('woman_asset_thumbnail'),
             womanAssetLabel: document.getElementById('woman_asset_label'),
             videoTitleInput: document.getElementById('video_title_input'),
+            manGallery: document.getElementById('man_gallery'),
+            womanGallery: document.getElementById('woman_gallery'),
+            interactiveModeToggle: document.getElementById('interactive_mode_toggle'),
             showSubtitlesToggle: document.getElementById('show_subtitles_toggle'),
             subtitleFontSlider: document.getElementById('subtitle_font_slider'),
             subtitleFontSizeValue: document.getElementById('subtitle_font_size_value'),
+            scriptTextArea: document.getElementById('script_text_area'),
+            manSubtitleTextColor: document.getElementById('man_subtitle_text_color'),
+            subtitleAnimationSelect: document.getElementById('subtitle_animation_select'),
+            womanSubtitleTextColor: document.getElementById('woman_subtitle_text_color'),
+            scriptAreaTitle: document.getElementById('script_area_title'),
+            scriptAreaInstructions: document.getElementById('script_area_instructions'),
+            generateCustomVideoBtn: document.getElementById('generate_custom_video_btn'),
         };
 
         // --- Globals ---
         let mediaRecorder;
+        let isInteractiveMode = false;
         let recordedChunks = [];
         let animationFrameId;
         let backgroundAssets = { man: null, woman: null };
-        const videoLibrary = { man: [], woman: [] };
-        const overlayState = { title: '', showSubtitles: true, currentSubtitle: '', subtitleFontSize: 26 };
+        const videoLibrary = { man: [], woman: [] }; 
+        const overlayState = { 
+            title: '', 
+            showSubtitles: true, 
+            currentSubtitle: { text: '', speaker: '', startTime: 0, duration: 250 }, // Animation duration in ms
+            subtitleFontSize: 26,
+            subtitleStyles: { man: { text: '#FFFFFF' }, woman: { text: '#FFFFFF' } },
+            subtitleAnimation: 'fade'
+        };
         let audioContext = null;
         let audioSource = null;
         let audioDestination = null;
         let activeVideo = null; // Holds the currently speaking video element
         let wakeLock = null; // For Screen Wake Lock API
         
-        // --- Event Listeners ---
+        // --- Event Listeners --- 
+        ui.generateCustomVideoBtn.addEventListener('click', handleCustomVideoGeneration);
         ui.generateBtn.addEventListener('click', handleGeneration);
         ui.useDefaultsBtn.addEventListener('click', fillDefaultCredentials);
         ui.speakingRateSlider.addEventListener('input', () => ui.speakingRateValue.textContent = parseFloat(ui.speakingRateSlider.value).toFixed(1));
@@ -375,11 +499,16 @@
         ui.womanVideoInput.addEventListener('change', () => handleVideoUpload(ui.womanVideoInput, ui.womanVideoPlayer, 'woman'));
         ui.aspectRatioSelect.addEventListener('change', setupCanvasAndContainer);
         ui.languageSelect.addEventListener('change', (e) => populateVoices(e.target.value));
+        ui.videoLengthSelect.addEventListener('change', updateFullPrompt);
+        ui.scriptLanguageSelect.addEventListener('change', updateFullPrompt);
         ui.scriptPromptInput.addEventListener('input', updateFullPrompt);
         ui.manVideoSelect.addEventListener('change', () => handleVideoLibrarySelection(ui.manVideoSelect, ui.manVideoPlayer, 'man'));
         ui.womanVideoSelect.addEventListener('change', () => handleVideoLibrarySelection(ui.womanVideoSelect, ui.womanVideoPlayer, 'woman'));
         if (ui.subtitleFontSlider) {
             ui.subtitleFontSlider.addEventListener('input', handleSubtitleFontResize);
+        }
+        if (ui.interactiveModeToggle) {
+            ui.interactiveModeToggle.addEventListener('change', toggleInteractiveMode);
         }
 
         // --- Functions ---
@@ -390,6 +519,21 @@
             ui.tokenInput.value = 'Get_ACCESS_TOKEN';
         }
         
+        function populateScriptLanguages() {
+            const languages = {
+                "English": "English", "Spanish": "Spanish", "French": "French", 
+                "German": "German", "Italian": "Italian", "Portuguese": "Portuguese", 
+                "Japanese": "Japanese", "Mandarin Chinese": "Mandarin Chinese", "Hindi": "Hindi", "Marathi": "Marathi", "Arabic": "Arabic"
+            };
+            ui.scriptLanguageSelect.innerHTML = '';
+            for (const [name, value] of Object.entries(languages)) {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = name;
+                ui.scriptLanguageSelect.appendChild(option);
+            }
+        }
+
         function populateLanguages() {
             ui.languageSelect.innerHTML = '';
             // Sort languages alphabetically by description for better UX
@@ -538,6 +682,8 @@
                 videoLibrary.woman = buildVideoLibrary(videoItems, 'woman', imageMap);
                 populateVideoLibrarySelect(ui.manVideoSelect, videoLibrary.man, 'Select a built-in man clip');
                 populateVideoLibrarySelect(ui.womanVideoSelect, videoLibrary.woman, 'Select a built-in woman clip');
+                populateGallery(ui.manGallery, videoLibrary.man, 'man');
+                populateGallery(ui.womanGallery, videoLibrary.woman, 'woman');
             } catch (error) {
                 console.error('Failed to load built-in assets:', error);
                 if (ui.manVideoSelect) {
@@ -548,10 +694,17 @@
                     ui.womanVideoSelect.innerHTML = '<option value="">Unavailable</option>';
                     ui.womanVideoSelect.disabled = true;
                 }
+                if (ui.manGallery) {
+                    ui.manGallery.innerHTML = '<p class="text-sm text-red-600 col-span-full">Could not load actor library.</p>';
+                }
+                if (ui.womanGallery) {
+                    ui.womanGallery.innerHTML = '<p class="text-sm text-red-600 col-span-full">Could not load actor library.</p>';
+                }
             }
         }
 
         function buildVideoLibrary(videoItems, prefix, imageMap) {
+            const names = prefix === 'man' ? manNames : womanNames;
             return videoItems
                 .filter(item => item.name && item.name.startsWith(prefix) && item.download_url)
                 .sort((a, b) => {
@@ -559,12 +712,11 @@
                     const suffixB = extractNumericSuffix(b.name, prefix);
                     return suffixA - suffixB;
                 })
-                .map(item => {
+                .map((item, index) => {
                     const baseName = item.name.replace(/\.mp4$/i, '');
-                    const suffixNumber = extractNumericSuffix(item.name, prefix);
-                    const labelSuffix = suffixNumber.toString().padStart(2, '0');
+                    const label = names[index] || `${prefix === 'man' ? 'Man' : 'Woman'} ${index + 1}`;
                     return {
-                        label: `${prefix === 'man' ? 'Man' : 'Woman'} ${labelSuffix}`,
+                        label: label,
                         videoUrl: item.download_url,
                         thumbnail: imageMap[baseName] || null
                     };
@@ -602,6 +754,69 @@
             }
             return response.json();
         }
+
+        function toggleInteractiveMode(e) {
+            isInteractiveMode = e.target.checked;
+            if (isInteractiveMode) {
+                ui.generateBtn.textContent = 'Generate Script';
+                ui.generateCustomVideoBtn.classList.add('hidden');
+                ui.scriptDisplayArea.classList.add('hidden');
+                ui.scriptTextArea.readOnly = false;
+                ui.scriptAreaTitle.textContent = 'Generated Script (Editable)';
+                ui.scriptAreaInstructions.classList.remove('hidden');
+            } else {
+                ui.generateBtn.textContent = 'Generate Video';
+                ui.generateCustomVideoBtn.classList.add('hidden');
+                ui.scriptDisplayArea.classList.add('hidden');
+                ui.scriptTextArea.readOnly = true;
+                ui.scriptAreaTitle.textContent = 'Generated Script';
+                ui.scriptAreaInstructions.classList.add('hidden');
+            }
+        }
+
+        function populateGallery(galleryElement, assets, speaker) {
+            if (!galleryElement) return;
+            galleryElement.innerHTML = '';
+            assets.forEach(asset => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item rounded-lg overflow-hidden border border-gray-200 bg-white';
+                item.dataset.value = JSON.stringify(asset);
+                item.dataset.speaker = speaker;
+
+                const img = document.createElement('img');
+                img.src = asset.thumbnail || `https://via.placeholder.com/150/f0f2f5/4f46e5?text=${asset.label.charAt(0)}`;
+                img.alt = asset.label;
+                img.className = 'w-full h-auto object-cover aspect-square';
+
+                const label = document.createElement('div');
+                label.className = 'p-2 text-center text-xs font-medium text-gray-600';
+                label.textContent = asset.label;
+
+                item.appendChild(img);
+                item.appendChild(label);
+                galleryElement.appendChild(item);
+
+                item.addEventListener('click', (e) => {
+                    const target = e.currentTarget;
+                    const speakerType = target.dataset.speaker;
+                    const value = target.dataset.value;
+                    const selectEl = speakerType === 'man' ? ui.manVideoSelect : ui.womanVideoSelect;
+                    
+                    if (selectEl) {
+                        selectEl.value = value;
+                        // Manually trigger the change event to update the preview and video player
+                        selectEl.dispatchEvent(new Event('change'));
+                    }
+
+                    // Update selection highlight
+                    document.querySelectorAll(`.gallery-item[data-speaker="${speakerType}"]`).forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    target.classList.add('selected');
+                });
+            });
+        }
+
 
         function handleSubtitleFontResize() {
             if (!ui.subtitleFontSlider || !ui.subtitleFontSizeValue) return;
@@ -651,6 +866,11 @@ Your response must only be the script itself.`;
             const ttsApiKey = ui.ttsApiKeyInput.value.trim();
             const modelId = ui.modelSelect.value;
 
+            // Update isInteractiveMode from checkbox state, just in case
+            isInteractiveMode = ui.interactiveModeToggle.checked;
+
+            ui.generateCustomVideoBtn.classList.add('hidden');
+
             if (!fullPrompt || !token || !projectId || !ttsApiKey || !backgroundAssets.man || !backgroundAssets.woman) {
                 alert("Please fill out all fields: Credentials, Videos, Model, and a Script Prompt.");
                 return;
@@ -666,7 +886,9 @@ Your response must only be the script itself.`;
             ui.canvas.classList.add('hidden');
             ui.messageArea.classList.add('hidden');
             ui.downloadLink.classList.add('hidden');
-            ui.scriptDisplayArea.classList.add('hidden'); // Hide script area on new generation
+            if (!isInteractiveMode) {
+                ui.scriptDisplayArea.classList.add('hidden'); // Hide script area on new generation
+            }
             ui.loader.classList.remove('hidden');
             ui.generateBtn.disabled = true;
             ui.generateBtn.textContent = 'Generating...';
@@ -682,8 +904,22 @@ Your response must only be the script itself.`;
                 ui.statusArea.textContent = 'Generating AI script...';
                 const script = await handleScriptGeneration(fullPrompt, token, projectId, modelId);
                 
-                ui.scriptText.textContent = script;
+                ui.scriptTextArea.value = script;
                 ui.scriptDisplayArea.classList.remove('hidden');
+
+                if (isInteractiveMode) {
+                    ui.statusArea.textContent = 'Script generated. You can now edit it and generate the video.';
+                    ui.loader.classList.add('hidden');
+                    ui.generateBtn.disabled = false;
+                    ui.generateBtn.textContent = 'Regenerate Script';
+                    ui.generateCustomVideoBtn.classList.remove('hidden');
+                    ui.scriptTextArea.readOnly = false;
+                    ui.scriptTextArea.focus();
+                    return; // Stop here for interactive mode
+                }
+
+                // --- Continue with the original flow if not in interactive mode ---
+                ui.scriptTextArea.readOnly = true;
 
                 const dialogueLines = script.split('\n').filter(line => line.trim() !== '' && (line.startsWith('Man:') || line.startsWith('Woman:'))).map(line => {
                     const [speaker, ...text] = line.split(':');
@@ -707,11 +943,73 @@ Your response must only be the script itself.`;
                 ui.statusArea.textContent = `Error: ${error.message}`;
                 ui.messageArea.textContent = `Error: ${error.message}. Check console for details.`;
                 ui.loader.classList.add('hidden');
-                ui.scriptDisplayArea.classList.add('hidden');
+                // Don't hide script area on error, so user can see what failed
+            } finally {
+                releaseWakeLock();
+                if (!isInteractiveMode) {
+                    ui.generateBtn.disabled = false;
+                    ui.generateBtn.textContent = 'Generate Video';
+                }
+            }
+        }
+
+        async function handleCustomVideoGeneration() {
+            const script = ui.scriptTextArea.value;
+            const ttsApiKey = ui.ttsApiKeyInput.value.trim();
+
+            if (!script) {
+                alert("The script is empty. Please generate or write a script first.");
+                return;
+            }
+            if (!ttsApiKey || !backgroundAssets.man || !backgroundAssets.woman) {
+                alert("Please ensure API Key and both videos are provided before generating.");
+                return;
+            }
+
+            ui.loader.classList.remove('hidden');
+            ui.generateBtn.disabled = true;
+            ui.generateCustomVideoBtn.disabled = true;
+            ui.generateCustomVideoBtn.textContent = 'Generating...';
+            ui.statusArea.textContent = 'Starting custom video generation...';
+
+            try {
+                await requestWakeLock();
+                setupCanvasAndContainer();
+
+                ui.statusArea.textContent = 'Loading video files...';
+                await loadBackgroundAssets();
+
+                const dialogueLines = script.split('\n').filter(line => line.trim() !== '' && (line.startsWith('Man:') || line.startsWith('Woman:'))).map(line => {
+                    const [speaker, ...text] = line.split(':');
+                    const sanitizedText = text.join(':').trim().replace(/[`*]/g, '');
+                    return { speaker: speaker.trim().toLowerCase(), text: sanitizedText, audio: null };
+                });
+
+                if (dialogueLines.length === 0) throw new Error("The script does not contain any valid 'Man:' or 'Woman:' dialogue lines.");
+
+                ui.statusArea.textContent = 'Generating audio from custom script...';
+                for (let line of dialogueLines) {
+                     ui.statusArea.textContent = `Generating audio for "${line.speaker}"...`;
+                     line.audio = await generateAudio(line.text, ttsApiKey, line.speaker);
+                }
+                
+                ui.statusArea.textContent = 'All assets generated. Preparing video...';
+                await recordAndPlaySequence(dialogueLines);
+
+            } catch (error) {
+                console.error("Custom video generation failed:", error);
+                ui.statusArea.textContent = `Error: ${error.message}`;
+                ui.messageArea.textContent = `Error: ${error.message}. Check console for details.`;
+                ui.loader.classList.add('hidden');
             } finally {
                 releaseWakeLock();
                 ui.generateBtn.disabled = false;
-                ui.generateBtn.textContent = 'Generate Video';
+                // Restore the 'Regenerate Script' text on the primary button
+                if (isInteractiveMode) {
+                    ui.generateBtn.textContent = 'Regenerate Script';
+                }
+                ui.generateCustomVideoBtn.disabled = false;
+                ui.generateCustomVideoBtn.textContent = 'Generate From Custom Script';
             }
         }
 
@@ -834,7 +1132,7 @@ Your response must only be the script itself.`;
         }
 
         function drawSubtitleOverlay(ctx) {
-            if (!overlayState.showSubtitles || !overlayState.currentSubtitle) return;
+            if (!overlayState.showSubtitles || !overlayState.currentSubtitle.text) return;
             const canvasWidth = ui.canvas.width;
             const canvasHeight = ui.canvas.height;
             ctx.save();
@@ -844,21 +1142,88 @@ Your response must only be the script itself.`;
             ctx.textBaseline = 'top';
             const maxTextWidth = canvasWidth * 0.9;
             const lineHeight = fontSize + 8;
-            const lines = wrapText(ctx, overlayState.currentSubtitle, maxTextWidth);
+            const lines = wrapText(ctx, overlayState.currentSubtitle.text, maxTextWidth);
+            const currentSpeaker = overlayState.currentSubtitle.speaker;
+            const textColor = overlayState.subtitleStyles[currentSpeaker]?.text || '#FFFFFF';
+            
+            // --- Animation Logic ---
+            const elapsed = performance.now() - overlayState.currentSubtitle.startTime;
+            const progress = Math.min(elapsed / overlayState.currentSubtitle.duration, 1.0);
+            let alpha = 1.0;
+            let yOffset = 0;
+            let xOffset = 0;
+
+            switch (overlayState.subtitleAnimation) {
+                case 'fade':
+                    alpha = progress;
+                    break;
+                case 'slide-up':
+                    alpha = progress;
+                    yOffset = (1 - progress) * 50; // Start 50px below and slide up
+                    break;
+                case 'slide-down':
+                    alpha = progress;
+                    yOffset = -(1 - progress) * 50; // Start 50px above and slide down
+                    break;
+                case 'slide-left':
+                    alpha = progress;
+                    xOffset = -(1 - progress) * 100; // Start 100px left and slide in
+                    break;
+                case 'slide-right':
+                    alpha = progress;
+                    xOffset = (1 - progress) * 100; // Start 100px right and slide in
+                    break;
+                case 'scale':
+                    ctx.save();
+                    // Translate to center of subtitle block to scale from the center
+                    ctx.translate(canvasWidth / 2, (canvasHeight - 28) - (lines.length * lineHeight + 18 * 2) / 2);
+                    ctx.scale(progress, progress);
+                    ctx.translate(-(canvasWidth / 2), -((canvasHeight - 28) - (lines.length * lineHeight + 18 * 2) / 2));
+                    alpha = progress;
+                    break;
+                case 'typewriter':
+                    {
+                        const totalChars = overlayState.currentSubtitle.text.length;
+                        const visibleChars = Math.floor(progress * totalChars);
+                        let charsToShow = 0;
+                        const wrappedLines = wrapText(ctx, overlayState.currentSubtitle.text, maxTextWidth);
+                        
+                        ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+                        ctx.fillRect(x, y, blockWidth, blockHeight);
+                        ctx.fillStyle = textColor;
+
+                        wrappedLines.forEach((line, index) => {
+                            const charsInLine = Math.min(Math.max(0, visibleChars - charsToShow), line.length);
+                            if (charsInLine > 0) {
+                                const textY = y + paddingY + index * lineHeight;
+                                ctx.fillText(line.substring(0, charsInLine), canvasWidth / 2, textY);
+                            }
+                            charsToShow += line.length + 1; // +1 for the space
+                        });
+                        ctx.restore();
+                        return; // Return early as we handled drawing
+                    }
+            }
+            ctx.globalAlpha = alpha;
+
             const widestLine = lines.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0);
             const paddingX = 24;
             const paddingY = 18;
             const blockWidth = Math.min(widestLine + paddingX * 2, canvasWidth - 32);
             const blockHeight = lines.length * lineHeight + paddingY * 2;
             const x = (canvasWidth - blockWidth) / 2;
-            const y = canvasHeight - blockHeight - 28;
+            const y = canvasHeight - blockHeight - 28 + yOffset;
             ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
             ctx.fillRect(x, y, blockWidth, blockHeight);
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = textColor;
             lines.forEach((line, index) => {
                 const textY = y + paddingY + index * lineHeight;
-                ctx.fillText(line, canvasWidth / 2, textY);
+                ctx.fillText(line, canvasWidth / 2 + xOffset, textY);
             });
+
+            if (overlayState.subtitleAnimation === 'scale') {
+                ctx.restore(); // Restore context if we did a scale transform
+            }
             ctx.restore();
         }
 
@@ -885,10 +1250,13 @@ Your response must only be the script itself.`;
             ui.canvas.classList.remove('hidden');
             overlayState.title = (ui.videoTitleInput?.value || '').trim();
             overlayState.showSubtitles = ui.showSubtitlesToggle ? ui.showSubtitlesToggle.checked : true;
-            overlayState.currentSubtitle = '';
+            overlayState.currentSubtitle = { text: '', speaker: '', startTime: 0, duration: 250 };
             const requestedFontSize = ui.subtitleFontSlider ? parseInt(ui.subtitleFontSlider.value, 10) : 26;
             overlayState.subtitleFontSize = Number.isNaN(requestedFontSize) ? 26 : requestedFontSize;
-            
+            overlayState.subtitleStyles.man.text = ui.manSubtitleTextColor.value;
+            overlayState.subtitleStyles.woman.text = ui.womanSubtitleTextColor.value;
+            overlayState.subtitleAnimation = ui.subtitleAnimationSelect.value;
+
             if (!audioContext) {
                 try {
                     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -939,9 +1307,14 @@ Your response must only be the script itself.`;
                 activeVideo.currentTime = 0;
                 activeVideo.loop = true;
                 await activeVideo.play();
-                const speakerLabel = line.speaker === 'man' ? 'Man' : 'Woman';
-                overlayState.currentSubtitle = `${speakerLabel}: ${line.text}`;
-                
+
+                let animDuration = 250;
+                if (overlayState.subtitleAnimation === 'typewriter') {
+                    const charsPerSecond = 30; // Faster typing speed
+                    animDuration = Math.max(500, (line.text.length / charsPerSecond) * 1000);
+                }
+                overlayState.currentSubtitle = { text: line.text, speaker: line.speaker, startTime: performance.now(), duration: animDuration };
+
                 ui.audioPlayer.src = URL.createObjectURL(line.audio.blob);
                 await ui.audioPlayer.play();
 
@@ -949,8 +1322,8 @@ Your response must only be the script itself.`;
                     ui.audioPlayer.onended = () => {
                         activeVideo.loop = false;
                         activeVideo.pause();
-                        activeVideo.currentTime = 0;
-                        overlayState.currentSubtitle = '';
+                        activeVideo.currentTime = 0; 
+                        overlayState.currentSubtitle = { text: '', speaker: '', startTime: 0, duration: 250 };
                         setTimeout(resolve, 200);
                     };
                 });
@@ -995,6 +1368,7 @@ Your response must only be the script itself.`;
         function initializeApp() {
             setupCanvasAndContainer();
             populateLanguages();
+            populateScriptLanguages();
             const defaultLang = 'en-US';
             ui.languageSelect.value = defaultLang;
             populateVoices(defaultLang);
@@ -1003,6 +1377,8 @@ Your response must only be the script itself.`;
             ui.womanVideoPlayer.crossOrigin = 'anonymous';
             handleSubtitleFontResize();
             initializeVideoLibrary();
+            // Set the initial state of the interactive mode UI correctly on load
+            toggleInteractiveMode({ target: { checked: false } });
         }
 
         initializeApp();
